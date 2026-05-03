@@ -11,6 +11,10 @@
 </head>
 <body>
 
+    <!-- Custom Cursor -->
+    <div id="cursor"></div>
+    <div id="cursor-follower"></div>
+
     <nav>
         <div class="logo">
             <img src="logo.jpg" alt="Wings Jewellers Logo">
@@ -22,22 +26,35 @@
             <li><a href="#about">About</a></li>
         </ul>
         <div class="nav-icons">
-            <a href="#"><i class="fa-solid fa-magnifying-glass"></i></a>
-            <a href="#" style="margin-left: 20px;"><i class="fa-solid fa-cart-shopping"></i></a>
+            <a href="#" class="nav-icon-link"><i class="fa-solid fa-magnifying-glass"></i></a>
+            <a href="#" class="nav-icon-link" style="margin-left: 20px;"><i class="fa-solid fa-cart-shopping"></i></a>
         </div>
     </nav>
 
     <section id="home" class="hero">
+        <!-- Floating Decorative Elements -->
+        <div class="floating-particle" style="top: 20%; left: 10%; width: 50px; height: 50px;"></div>
+        <div class="floating-particle" style="top: 60%; right: 15%; width: 80px; height: 80px;"></div>
+        <div class="floating-particle" style="bottom: 10%; left: 30%; width: 30px; height: 30px;"></div>
+
         <div class="hero-content">
-            <h1>Wings Jewellers</h1>
-            <p>Trendy. Timeless. Totally You. Discover our exclusive collection of Korean Jewelry.</p>
+            <div class="hero-brand">
+                <img src="logo.jpg" alt="Wings Jewellers Logo" class="hero-logo">
+                <h1>Wings Jewellers</h1>
+            </div>
+            <p>Trendy. Timeless. Totally You. <br>Discover our exclusive collection of Korean Jewelry.</p>
             <a href="#categories" class="cta-button">Explore Collections</a>
         </div>
     </section>
 
     <!-- Special Collection Banner -->
-    <section class="banner-section" style="padding: 0; height: 60vh; overflow: hidden;">
-        <img src="banner1.jpg" alt="Korean Jewelry Banner" style="width: 100%; height: 100%; object-fit: cover;">
+    <section class="banner-section" style="padding: 0; height: 70vh; overflow: hidden; position: relative;">
+        <img src="banner1.jpg" alt="Korean Jewelry Banner" style="width: 100%; height: 100%; object-fit: cover;" class="parallax-img">
+        <div class="banner-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center;">
+            <div class="banner-text" style="color: white; text-align: center;">
+                <h2 style="font-size: 3.5rem; font-family: 'Playfair Display'; text-shadow: 0 10px 20px rgba(0,0,0,0.3); font-weight: 700;">Elegance Personified</h2>
+            </div>
+        </div>
     </section>
 
     <section id="categories">
@@ -46,28 +63,28 @@
             <div class="underline"></div>
         </div>
         <div class="categories">
-            <div class="category-card">
+            <div class="category-card shine-effect">
                 <img src="https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?q=80&w=1887" alt="Necklaces">
                 <div class="category-overlay">
                     <h3>Korean Necklaces</h3>
                     <p>Subtle. Stunning. You.</p>
                 </div>
             </div>
-            <div class="category-card">
+            <div class="category-card shine-effect">
                 <img src="https://images.unsplash.com/photo-1635767798638-3e25273a8236?q=80&w=1964" alt="Earrings">
                 <div class="category-overlay">
                     <h3>Korean Earrings</h3>
                     <p>Dainty and sophisticated</p>
                 </div>
             </div>
-            <div class="category-card">
+            <div class="category-card shine-effect">
                 <img src="https://images.unsplash.com/photo-1611591437281-460bfbe1220a?q=80&w=2070" alt="Bracelets">
                 <div class="category-overlay">
                     <h3>Korean Bracelets</h3>
                     <p>Minimal. Chic. Perfect.</p>
                 </div>
             </div>
-            <div class="category-card">
+            <div class="category-card shine-effect">
                 <img src="https://images.unsplash.com/photo-1590548784585-643d2b9f292c?q=80&w=1964" alt="Anklets">
                 <div class="category-overlay">
                     <h3>Korean Anklets</h3>
@@ -78,13 +95,13 @@
     </section>
 
     <!-- Full Grid Showcase -->
-    <section id="full-collection" style="background-color: var(--primary-peach); text-align: center;">
+    <section id="full-collection" style="background-color: var(--primary-peach); text-align: center; position: relative; overflow: hidden;">
         <div class="section-title">
             <h2>The Korean Jewelry Collection</h2>
             <p>Simple. Stylish. Sophisticated.</p>
             <div class="underline"></div>
         </div>
-        <div class="full-grid-img" style="max-width: 1000px; margin: 0 auto; border-radius: 20px; overflow: hidden; box-shadow: 0 30px 60px rgba(0,0,0,0.1);">
+        <div class="full-grid-img" style="max-width: 1100px; margin: 0 auto; border-radius: 40px; overflow: hidden; box-shadow: 0 50px 100px rgba(0,0,0,0.15);">
             <img src="products_full.jpg" alt="Full Korean Jewelry Collection" style="width: 100%; display: block;">
         </div>
     </section>
@@ -101,7 +118,7 @@
                 </div>
                 <h3>Butterfly Whisper Necklace</h3>
                 <p class="product-price">$29.00</p>
-                <a href="#" class="cta-button" style="margin-top: 15px; padding: 0.6rem 1.5rem; font-size: 0.9rem;">Shop Now</a>
+                <a href="#" class="cta-button" style="margin-top: 25px; padding: 0.8rem 2rem; font-size: 0.8rem;">Shop Now</a>
             </div>
             <div class="product-card">
                 <div class="product-img">
@@ -109,15 +126,15 @@
                 </div>
                 <h3>Tiny Heart Bracelet</h3>
                 <p class="product-price">$24.00</p>
-                <a href="#" class="cta-button" style="margin-top: 15px; padding: 0.6rem 1.5rem; font-size: 0.9rem;">Shop Now</a>
+                <a href="#" class="cta-button" style="margin-top: 25px; padding: 0.8rem 2rem; font-size: 0.8rem;">Shop Now</a>
             </div>
             <div class="product-card">
                 <div class="product-img">
-                    <img src="https://images.unsplash.com/photo-1590548784585-643d2b9f292c?q=80&w=1964" alt="Butterfly Charm Anklet">
+                    <img src="https://images.unsplash.com/photo-1535633302704-c02fbc751c0a?q=80&w=1887" alt="Butterfly Charm Anklet">
                 </div>
                 <h3>Butterfly Charm Anklet</h3>
                 <p class="product-price">$26.00</p>
-                <a href="#" class="cta-button" style="margin-top: 15px; padding: 0.6rem 1.5rem; font-size: 0.9rem;">Shop Now</a>
+                <a href="#" class="cta-button" style="margin-top: 25px; padding: 0.8rem 2rem; font-size: 0.8rem;">Shop Now</a>
             </div>
         </div>
     </section>
@@ -125,14 +142,14 @@
     <footer id="about">
         <div class="footer-content">
             <div class="footer-section">
-                <div class="logo" style="margin-bottom: 15px;">
-                    <img src="logo.jpg" alt="Wings Jewellers Logo" style="height: 60px;">
+                <div class="logo" style="margin-bottom: 25px;">
+                    <img src="logo.jpg" alt="Wings Jewellers Logo" style="height: 80px;">
                 </div>
-                <p>Bringing the finest Korean jewelry designs to you. Wings Jewellers stands for lightness, beauty, and grace.</p>
+                <p style="color: rgba(255,255,255,0.7);">Bringing the finest Korean jewelry designs to you. Wings Jewellers stands for lightness, beauty, and grace.</p>
             </div>
             <div class="footer-section">
                 <h3>Quick Links</h3>
-                <ul>
+                <ul style="color: rgba(255,255,255,0.7);">
                     <li><a href="#">Shipping Policy</a></li>
                     <li><a href="#">Return & Refund</a></li>
                     <li><a href="#">Contact Us</a></li>
@@ -141,10 +158,10 @@
             </div>
             <div class="footer-section">
                 <h3>Connect With Us</h3>
-                <div style="display: flex; gap: 15px; margin-top: 10px;">
-                    <a href="#"><i class="fa-brands fa-instagram fa-xl"></i></a>
-                    <a href="#"><i class="fa-brands fa-facebook fa-xl"></i></a>
-                    <a href="#"><i class="fa-brands fa-pinterest fa-xl"></i></a>
+                <div style="display: flex; gap: 20px; margin-top: 15px;">
+                    <a href="#" class="social-icon"><i class="fa-brands fa-instagram fa-xl"></i></a>
+                    <a href="#" class="social-icon"><i class="fa-brands fa-facebook fa-xl"></i></a>
+                    <a href="#" class="social-icon"><i class="fa-brands fa-pinterest fa-xl"></i></a>
                 </div>
             </div>
         </div>
