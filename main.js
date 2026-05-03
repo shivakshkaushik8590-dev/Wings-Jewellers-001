@@ -4,27 +4,23 @@ const follower = document.getElementById('cursor-follower');
 
 document.addEventListener('mousemove', (e) => {
     const { clientX: x, clientY: y } = e;
-    
-    // Smooth movement for cursor
     cursor.style.transform = `translate(${x - 10}px, ${y - 10}px)`;
-    
-    // Smooth movement for follower with delay
     follower.style.transform = `translate(${x - 20}px, ${y - 20}px)`;
 });
 
-// Hover effect for links
-document.querySelectorAll('a, button, .category-card').forEach(link => {
-    link.addEventListener('mouseenter', () => {
-        follower.style.width = '80px';
-        follower.style.height = '80px';
-        follower.style.transform += ' translate(-20px, -20px)';
-        follower.style.background = 'rgba(212, 175, 55, 0.1)';
-    });
-    link.addEventListener('mouseleave', () => {
-        follower.style.width = '40px';
-        follower.style.height = '40px';
-        follower.style.background = 'transparent';
-    });
+// Chatbot Toggle
+const chatTrigger = document.getElementById('chat-trigger');
+const chatWrapper = document.getElementById('chat-wrapper');
+const closeChat = document.getElementById('close-chat');
+
+chatTrigger.addEventListener('click', () => {
+    chatWrapper.classList.toggle('chat-hidden');
+    chatTrigger.style.display = chatWrapper.classList.contains('chat-hidden') ? 'flex' : 'none';
+});
+
+closeChat.addEventListener('click', () => {
+    chatWrapper.classList.add('chat-hidden');
+    chatTrigger.style.display = 'flex';
 });
 
 // Smooth scrolling for navigation links
@@ -84,7 +80,6 @@ window.addEventListener('scroll', () => {
         particle.style.transform = `translateY(${scroll * speed}px)`;
     });
     
-    // Parallax for banner image
     const parallaxImg = document.querySelector('.parallax-img');
     if (parallaxImg) {
         parallaxImg.style.transform = `translateY(${scroll * 0.1}px)`;
