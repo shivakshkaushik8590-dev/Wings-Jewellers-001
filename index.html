@@ -21,6 +21,7 @@
         </div>
         <ul class="nav-links">
             <li><a href="#home">Home</a></li>
+            <li><a href="#design-lab">Design Studio</a></li>
             <li><a href="#categories">Collections</a></li>
             <li><a href="#products">New Arrivals</a></li>
             <li><a href="#about">About</a></li>
@@ -43,7 +44,10 @@
                 <h1>Wings Jewellers</h1>
             </div>
             <p>Trendy. Timeless. Totally You. <br>Discover our exclusive collection of Korean Jewelry.</p>
-            <a href="#categories" class="cta-button">Explore Collections</a>
+            <div class="hero-actions" style="display: flex; gap: 20px; justify-content: center; align-items: center; opacity: 0; transform: translateY(30px); animation: fadeInUp 1.2s forwards 0.9s;">
+                <a href="#categories" class="cta-button" style="margin: 0; opacity: 1; transform: none; animation: none;">Explore Collections</a>
+                <a href="#design-lab" class="cta-button secondary-cta" style="margin: 0; opacity: 1; transform: none; animation: none;">Design Your Own</a>
+            </div>
         </div>
     </section>
 
@@ -53,6 +57,361 @@
         <div class="banner-overlay" style="position: absolute; inset: 0; background: rgba(0,0,0,0.15); display: flex; align-items: center; justify-content: center;">
             <div class="banner-text" style="color: white; text-align: center;">
                 <h2 style="font-size: 3.5rem; font-family: 'Playfair Display'; text-shadow: 0 10px 20px rgba(0,0,0,0.3); font-weight: 700;">Elegance Personified</h2>
+            </div>
+        </div>
+    </section>
+
+    <!-- Wings Design Studio (Jewelry Customizer) -->
+    <section id="design-lab" class="design-studio-section">
+        <div class="section-title">
+            <h2>Wings Design Studio</h2>
+            <p>Customize your own luxury Korean jewelry or edit one of our classic templates</p>
+            <div class="underline"></div>
+        </div>
+        <div class="studio-container">
+            <!-- Left Panel: Live Preview -->
+            <div class="preview-panel">
+                <div class="preview-card">
+                    <div class="preview-canvas-container" id="canvas-container">
+                        <!-- Dynamic SVG Jewelry Render -->
+                        <svg id="jewelry-svg" viewBox="0 0 500 500" xmlns="http://www.w3.org/2000/svg">
+                            <!-- Gradient Definitions -->
+                            <defs>
+                                <radialGradient id="plaque-bg" cx="50%" cy="50%" r="75%">
+                                    <stop offset="0%" stop-color="#2c2420" />
+                                    <stop offset="100%" stop-color="#14110f" />
+                                </radialGradient>
+                                
+                                <linearGradient id="gold-metal" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#BF953F" />
+                                    <stop offset="25%" stop-color="#FCF6BA" />
+                                    <stop offset="50%" stop-color="#B38728" />
+                                    <stop offset="75%" stop-color="#FBF5B7" />
+                                    <stop offset="100%" stop-color="#AA771C" />
+                                </linearGradient>
+                                <linearGradient id="silver-metal" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#d3d3d3" />
+                                    <stop offset="25%" stop-color="#ffffff" />
+                                    <stop offset="50%" stop-color="#a9a9a9" />
+                                    <stop offset="75%" stop-color="#e0e0e0" />
+                                    <stop offset="100%" stop-color="#999999" />
+                                </linearGradient>
+                                <linearGradient id="rose-metal" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#b76e79" />
+                                    <stop offset="25%" stop-color="#ffd1dc" />
+                                    <stop offset="50%" stop-color="#b76e79" />
+                                    <stop offset="75%" stop-color="#e0a899" />
+                                    <stop offset="100%" stop-color="#a25b64" />
+                                </linearGradient>
+                                
+                                <!-- Gem Gradients -->
+                                <radialGradient id="gem-diamond" cx="35%" cy="35%" r="65%">
+                                    <stop offset="0%" stop-color="#ffffff" />
+                                    <stop offset="30%" stop-color="#e3f2fd" />
+                                    <stop offset="70%" stop-color="#90caf9" />
+                                    <stop offset="100%" stop-color="#42a5f5" />
+                                </radialGradient>
+                                <radialGradient id="gem-ruby" cx="35%" cy="35%" r="65%">
+                                    <stop offset="0%" stop-color="#ff8a80" />
+                                    <stop offset="40%" stop-color="#ff1744" />
+                                    <stop offset="100%" stop-color="#b71c1c" />
+                                </radialGradient>
+                                <radialGradient id="gem-emerald" cx="35%" cy="35%" r="65%">
+                                    <stop offset="0%" stop-color="#b9f6ca" />
+                                    <stop offset="40%" stop-color="#00e676" />
+                                    <stop offset="100%" stop-color="#1b5e20" />
+                                </radialGradient>
+                                <radialGradient id="gem-sapphire" cx="35%" cy="35%" r="65%">
+                                    <stop offset="0%" stop-color="#82b1ff" />
+                                    <stop offset="40%" stop-color="#2979ff" />
+                                    <stop offset="100%" stop-color="#0d47a1" />
+                                </radialGradient>
+                                <radialGradient id="gem-amethyst" cx="35%" cy="35%" r="65%">
+                                    <stop offset="0%" stop-color="#ea80fc" />
+                                    <stop offset="40%" stop-color="#d500f9" />
+                                    <stop offset="100%" stop-color="#4a148c" />
+                                </radialGradient>
+                                <radialGradient id="gem-pearl" cx="35%" cy="35%" r="65%">
+                                    <stop offset="0%" stop-color="#ffffff" />
+                                    <stop offset="40%" stop-color="#fdf5e6" />
+                                    <stop offset="85%" stop-color="#eae0d0" />
+                                    <stop offset="100%" stop-color="#c8bca6" />
+                                </radialGradient>
+
+                                <!-- Drop shadow and Glow filters -->
+                                <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#000000" flood-opacity="0.3" />
+                                </filter>
+                                <filter id="gem-glow" x="-30%" y="-30%" width="160%" height="160%">
+                                    <feGaussianBlur in="SourceGraphic" stdDeviation="2" result="blur" />
+                                    <feMerge>
+                                        <feMergeNode in="blur" />
+                                        <feMergeNode in="SourceGraphic" />
+                                    </feMerge>
+                                </filter>
+                            </defs>
+
+                            <!-- Background Velvet Plaque -->
+                            <rect width="500" height="500" rx="25" fill="url(#plaque-bg)" />
+                            
+                            <!-- Neck outline for context (subtle and luxury) -->
+                            <path d="M 120 0 C 120 120, 160 170, 250 170 C 340 170, 380 120, 380 0" fill="none" stroke="rgba(255,255,255,0.03)" stroke-width="3" />
+                            
+                            <!-- Jewelry Chain Group -->
+                            <g id="chain-group">
+                                <path id="chain-path" d="M 70 70 C 130 280, 370 280, 430 70" fill="none" stroke="url(#gold-metal)" stroke-width="4.5" filter="url(#shadow)" />
+                                <path id="chain-highlight" d="M 70 70 C 130 280, 370 280, 430 70" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-dasharray="2 8" stroke-linecap="round" opacity="0.75" />
+                            </g>
+
+                            <!-- Pendant Bail Group -->
+                            <g id="bail-group" filter="url(#shadow)">
+                                <circle id="bail-ring-1" cx="250" cy="242" r="7" fill="none" stroke="url(#gold-metal)" stroke-width="2.5" />
+                                <circle id="bail-ring-2" cx="250" cy="251" r="5" fill="none" stroke="url(#gold-metal)" stroke-width="2" />
+                            </g>
+
+                            <!-- Pendant Base Group -->
+                            <g id="pendant-base-group" filter="url(#shadow)"></g>
+
+                            <!-- Engraving Group -->
+                            <g id="engraving-group"></g>
+
+                            <!-- Charms Group -->
+                            <g id="charms-group"></g>
+
+                            <!-- Gemstones Group -->
+                            <g id="gemstones-group"></g>
+                        </svg>
+                        
+                        <div class="canvas-badge">Live 2D Customizer</div>
+                        <div class="canvas-sparkle" id="sparkle-effect"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Customizer Controls -->
+            <div class="control-panel">
+                <!-- Navigation Tabs -->
+                <div class="studio-tabs">
+                    <button class="tab-btn active" data-tab="presets">Presets</button>
+                    <button class="tab-btn" data-tab="base">Base & Metal</button>
+                    <button class="tab-btn" data-tab="charms">Charms</button>
+                    <button class="tab-btn" data-tab="gems">Gems</button>
+                    <button class="tab-btn" data-tab="engrave">Engrave</button>
+                </div>
+
+                <!-- Tab Contents -->
+                <div class="tab-content-container">
+                    <!-- Presets Tab -->
+                    <div class="tab-pane active" id="presets-tab">
+                        <h3>Handcrafted Templates</h3>
+                        <p class="tab-desc">Choose a designer preset to load, edit, or customize further.</p>
+                        <div class="presets-grid">
+                            <div class="preset-card active" data-preset="wings">
+                                <div class="preset-icon"><i class="fa-solid fa-feather-pointed"></i></div>
+                                <h4>Wings of Elegance</h4>
+                                <p>Rose Gold | Wing Charm | Diamond</p>
+                            </div>
+                            <div class="preset-card" data-preset="lunar">
+                                <div class="preset-icon"><i class="fa-solid fa-moon"></i></div>
+                                <h4>Lunar Dream</h4>
+                                <p>Silver | Moon & Star | Sapphire</p>
+                            </div>
+                            <div class="preset-card" data-preset="eternal">
+                                <div class="preset-icon"><i class="fa-solid fa-heart"></i></div>
+                                <h4>Eternal Love</h4>
+                                <p>Gold | Heart | Ruby</p>
+                            </div>
+                            <div class="preset-card" data-preset="minimal">
+                                <div class="preset-icon"><i class="fa-solid fa-gem"></i></div>
+                                <h4>Pure Minimalist</h4>
+                                <p>Silver | Solitaire Diamond</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Base & Metal Tab -->
+                    <div class="tab-pane" id="base-tab">
+                        <h3>Base Settings</h3>
+                        <div class="options-group">
+                            <label>Jewelry Type</label>
+                            <div class="button-selector" id="base-type-select">
+                                <button class="select-btn active" data-value="necklace">Necklace</button>
+                                <button class="select-btn" data-value="bracelet">Bracelet</button>
+                                <button class="select-btn" data-value="anklet">Anklet</button>
+                            </div>
+                        </div>
+                        <div class="options-group">
+                            <label>Metal Type</label>
+                            <div class="metal-selector" id="metal-select">
+                                <div class="metal-option" data-value="gold" style="background: linear-gradient(135deg, #BF953F, #FCF6BA, #AA771C);">
+                                    <span>Gold</span>
+                                </div>
+                                <div class="metal-option" data-value="silver" style="background: linear-gradient(135deg, #d3d3d3, #ffffff, #999999);">
+                                    <span>Silver</span>
+                                </div>
+                                <div class="metal-option active" data-value="rose" style="background: linear-gradient(135deg, #b76e79, #ffd1dc, #a25b64);">
+                                    <span>Rose Gold</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="options-group">
+                            <label>Pendant Base Shape</label>
+                            <div class="button-selector" id="base-shape-select">
+                                <button class="select-btn" data-value="none">None (Charms Only)</button>
+                                <button class="select-btn" data-value="round">Round Medal</button>
+                                <button class="select-btn active" data-value="heart">Heart Locket</button>
+                                <button class="select-btn" data-value="bar">Vertical Bar</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Charms Tab -->
+                    <div class="tab-pane" id="charms-tab">
+                        <h3>Select & Add Charms</h3>
+                        <p class="tab-desc">Click "+" to add a charm to your jewelry piece. Drag the slider below to position it.</p>
+                        <div class="charms-grid">
+                            <div class="charm-item" data-charm="wing">
+                                <div class="charm-icon"><i class="fa-solid fa-feather-pointed"></i></div>
+                                <span>Angel Wing</span>
+                                <button class="charm-add-btn"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div class="charm-item" data-charm="heart">
+                                <div class="charm-icon"><i class="fa-solid fa-heart"></i></div>
+                                <span>Tiny Heart</span>
+                                <button class="charm-add-btn"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div class="charm-item" data-charm="star">
+                                <div class="charm-icon"><i class="fa-solid fa-star"></i></div>
+                                <span>Star</span>
+                                <button class="charm-add-btn"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div class="charm-item" data-charm="moon">
+                                <div class="charm-icon"><i class="fa-solid fa-moon"></i></div>
+                                <span>Crescent Moon</span>
+                                <button class="charm-add-btn"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div class="charm-item" data-charm="butterfly">
+                                <div class="charm-icon"><i class="fa-solid fa-feather" style="transform: rotate(45deg);"></i></div>
+                                <span>Butterfly</span>
+                                <button class="charm-add-btn"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                            <div class="charm-item" data-charm="infinity">
+                                <div class="charm-icon"><i class="fa-solid fa-infinity"></i></div>
+                                <span>Infinity</span>
+                                <button class="charm-add-btn"><i class="fa-solid fa-plus"></i></button>
+                            </div>
+                        </div>
+                        
+                        <div class="active-charms-section" id="active-charms-container">
+                            <h4>Active Charms & Placement</h4>
+                            <div class="no-charms-msg">No charms added yet. Click "+" above to start.</div>
+                        </div>
+                    </div>
+
+                    <!-- Gems Tab -->
+                    <div class="tab-pane" id="gems-tab">
+                        <h3>Gemstone Options</h3>
+                        <p class="tab-desc">Choose a premium focal gemstone to set on your pendant centerpiece.</p>
+                        <div class="options-group">
+                            <label>Gemstone</label>
+                            <div class="gems-selector" id="gem-type-select">
+                                <div class="gem-option active" data-value="diamond" data-price="60">
+                                    <div class="gem-color-dot" style="background: radial-gradient(circle, #fff, #90caf9);"></div>
+                                    <span>Diamond</span>
+                                </div>
+                                <div class="gem-option" data-value="ruby" data-price="45">
+                                    <div class="gem-color-dot" style="background: radial-gradient(circle, #ff8a80, #b71c1c);"></div>
+                                    <span>Ruby</span>
+                                </div>
+                                <div class="gem-option" data-value="sapphire" data-price="45">
+                                    <div class="gem-color-dot" style="background: radial-gradient(circle, #82b1ff, #0d47a1);"></div>
+                                    <span>Sapphire</span>
+                                </div>
+                                <div class="gem-option" data-value="emerald" data-price="45">
+                                    <div class="gem-color-dot" style="background: radial-gradient(circle, #b9f6ca, #1b5e20);"></div>
+                                    <span>Emerald</span>
+                                </div>
+                                <div class="gem-option" data-value="amethyst" data-price="25">
+                                    <div class="gem-color-dot" style="background: radial-gradient(circle, #ea80fc, #4a148c);"></div>
+                                    <span>Amethyst</span>
+                                </div>
+                                <div class="gem-option" data-value="pearl" data-price="20">
+                                    <div class="gem-color-dot" style="background: radial-gradient(circle, #fff, #c8bca6);"></div>
+                                    <span>Pearl</span>
+                                </div>
+                                <div class="gem-option" data-value="none" data-price="0">
+                                    <div class="gem-color-dot" style="background: #ccc; border: 1px dashed #777;"></div>
+                                    <span>None</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="options-group" id="gem-cut-wrapper">
+                            <label>Gemstone Cut</label>
+                            <div class="button-selector" id="gem-cut-select">
+                                <button class="select-btn active" data-value="round">Round Brilliant</button>
+                                <button class="select-btn" data-value="heart">Heart Shape</button>
+                                <button class="select-btn" data-value="pear">Pear/Teardrop</button>
+                                <button class="select-btn" data-value="emerald">Emerald Cut</button>
+                            </div>
+                        </div>
+
+                        <div class="options-group" id="gem-size-wrapper">
+                            <label>Gemstone Size</label>
+                            <div class="slider-container">
+                                <input type="range" id="gem-size-slider" min="6" max="18" value="12" step="1">
+                                <div class="slider-values">
+                                    <span>6mm</span>
+                                    <span id="gem-size-value">Medium (12mm)</span>
+                                    <span>18mm</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Engraving Tab -->
+                    <div class="tab-pane" id="engrave-tab">
+                        <h3>Custom Engraving</h3>
+                        <p class="tab-desc">Engrave a short name, date, or message onto your pendant body.</p>
+                        
+                        <div class="options-group">
+                            <label for="engraving-input">Inscription Text</label>
+                            <input type="text" id="engraving-input" maxlength="15" placeholder="e.g. LOVE, WINGS, 11:11" class="luxury-input">
+                            <div class="input-limit"><span id="engraving-char-count">0</span> / 15 characters</div>
+                        </div>
+
+                        <div class="options-group">
+                            <label>Font Style</label>
+                            <div class="font-selector" id="engraving-font-select">
+                                <div class="font-option active" data-value="cursive" style="font-family: 'Alex Brush', cursive;">Cursive Script</div>
+                                <div class="font-option" data-value="serif" style="font-family: 'Playfair Display', serif;">Classic Serif</div>
+                                <div class="font-option" data-value="sans" style="font-family: 'Outfit', sans-serif;">Minimal Sans</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Footer Summary / Checkout -->
+                <div class="studio-summary">
+                    <div class="summary-details">
+                        <div class="summary-line">
+                            <span>Base Metal & Design:</span>
+                            <span id="summary-base-price">$29.00</span>
+                        </div>
+                        <div class="summary-line">
+                            <span>Custom Additions:</span>
+                            <span id="summary-additions-price">$0.00</span>
+                        </div>
+                        <div class="summary-line total">
+                            <span>Estimated Total:</span>
+                            <span id="summary-total-price">$29.00</span>
+                        </div>
+                    </div>
+                    <div class="summary-actions">
+                        <button class="save-design-btn" id="save-design"><i class="fa-regular fa-bookmark"></i> Save Layout</button>
+                        <button class="add-to-cart-btn" id="add-to-cart-design"><i class="fa-solid fa-cart-shopping"></i> Add to Cart</button>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
