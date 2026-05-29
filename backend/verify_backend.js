@@ -39,6 +39,9 @@ let errors = 0;
 // Set dummy env variables for parsing
 process.env.MONGO_URI = 'mongodb://localhost:27017/test_verify';
 process.env.JWT_SECRET = 'verify_secret_12345';
+process.env.CASHFREE_APP_ID = 'cf_test_mockAppId123';
+process.env.CASHFREE_SECRET_KEY = 'mockCashfreeSecret456';
+process.env.CASHFREE_ENV = 'sandbox';
 process.env.RAZORPAY_KEY_ID = 'rzp_test_mockKeyId123';
 process.env.RAZORPAY_KEY_SECRET = 'mockRazorpaySecret456';
 process.env.PORT = '9999';

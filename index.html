@@ -498,6 +498,95 @@
         </div>
     </section>
 
+    <!-- Reviews & Ratings Section -->
+    <section id="reviews" class="reviews-section">
+        <div class="section-title">
+            <h2>Customer Reviews</h2>
+            <p>What our clients say about their bespoke creations</p>
+            <div class="underline"></div>
+        </div>
+        <div class="reviews-grid">
+            <!-- Review Composer -->
+            <div class="review-composer">
+                <h3>Write a Review</h3>
+                <p style="color: var(--light-brown); font-size: 0.9rem; margin-bottom: 1.5rem;">Share your experience with our custom jewelry studio.</p>
+                <form id="review-form" onsubmit="event.preventDefault();">
+                    <div class="luxury-input-group">
+                        <label>Your Name</label>
+                        <input type="text" id="review-user-input" class="luxury-input" placeholder="e.g. Isabella Thorne" required>
+                    </div>
+                    <div class="luxury-input-group">
+                        <label>Rating</label>
+                        <div class="rating-stars-input" id="stars-selector">
+                            <i class="fa-solid fa-star" data-rating="1"></i>
+                            <i class="fa-solid fa-star" data-rating="2"></i>
+                            <i class="fa-solid fa-star" data-rating="3"></i>
+                            <i class="fa-solid fa-star" data-rating="4"></i>
+                            <i class="fa-solid fa-star" data-rating="5"></i>
+                        </div>
+                    </div>
+                    <div class="luxury-input-group">
+                        <label>Review Comment</label>
+                        <textarea id="review-comment-input" class="luxury-input" rows="4" placeholder="Describe the quality, customization experience, or fit..." style="resize: none;" required></textarea>
+                    </div>
+                    <button type="submit" id="submit-review-btn" class="cta-button" style="margin: 0; width: 100%; border: none; cursor: pointer;">Submit Review</button>
+                </form>
+            </div>
+            
+            <!-- Reviews List -->
+            <div>
+                <h3 style="margin-bottom: 1.5rem; color: var(--dark-brown);">Verified Client Opinions</h3>
+                <div class="reviews-list" id="reviews-display-list">
+                    <!-- Dynamic Reviews appended here -->
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Order Tracking & Reversals Section -->
+    <section id="order-tracking" class="tracking-wrapper">
+        <div class="section-title">
+            <h2>Track Your Order</h2>
+            <p>Retrieve status updates and manage your purchase in real-time</p>
+            <div class="underline"></div>
+        </div>
+        <div class="tracking-search-bar">
+            <input type="text" id="track-order-id-input" class="luxury-input" placeholder="Enter Order ID (e.g., WINGS-109483)" style="background: white;">
+            <button id="track-order-btn" class="cta-button" style="margin: 0; white-space: nowrap; border: none; cursor: pointer;">Search</button>
+        </div>
+        
+        <!-- Tracking Result Area -->
+        <div id="tracking-result-panel" style="display: none; animation: fadeIn 0.8s forwards;">
+            <div class="tracking-steps-container">
+                <div class="tracking-progress-line" id="tracking-progress-indicator"></div>
+                <div class="tracking-node" id="step-node-pending">
+                    <div class="tracking-circle"><i class="fa-solid fa-receipt"></i></div>
+                    <div class="tracking-label">Placed</div>
+                </div>
+                <div class="tracking-node" id="step-node-processing">
+                    <div class="tracking-circle"><i class="fa-solid fa-screwdriver-wrench"></i></div>
+                    <div class="tracking-label">Crafting</div>
+                </div>
+                <div class="tracking-node" id="step-node-shipped">
+                    <div class="tracking-circle"><i class="fa-solid fa-truck-fast"></i></div>
+                    <div class="tracking-label">Shipped</div>
+                </div>
+                <div class="tracking-node" id="step-node-delivered">
+                    <div class="tracking-circle"><i class="fa-solid fa-box-open"></i></div>
+                    <div class="tracking-label">Delivered</div>
+                </div>
+            </div>
+            
+            <p id="tracking-desc-text" style="color: var(--light-brown); font-weight: 600; font-size: 0.95rem; margin-top: 20px;"></p>
+            
+            <!-- Invoice & Return options -->
+            <div class="order-tracking-actions">
+                <button class="order-action-btn invoice-btn" id="invoice-download-trigger"><i class="fa-solid fa-file-invoice-dollar"></i> Invoice PDF</button>
+                <button class="order-action-btn return-btn" id="order-reversal-trigger"><i class="fa-solid fa-rotate-left"></i> Return Request</button>
+            </div>
+        </div>
+    </section>
+
     <footer id="about">
         <div class="footer-content">
             <div class="footer-section">
@@ -547,6 +636,234 @@
     <div id="chat-trigger" class="luxury-symbol">
         <i class="fa-solid fa-feather-pointed"></i>
         <div class="pulse-ring"></div>
+    </div>
+
+    <!-- Checkout Modal Overlay -->
+    <div id="checkout-modal-overlay" class="modal-overlay">
+        <div class="checkout-modal">
+            <div class="modal-header">
+                <h3>Bespoke Checkout</h3>
+                <button id="close-checkout-modal" class="modal-close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div style="margin-bottom: 2rem;">
+                <h4 style="margin-bottom: 0.8rem; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px; color: var(--light-brown);">Order Summary</h4>
+                <div class="checkout-summary-row">
+                    <span>Centerpiece & Chain:</span>
+                    <span id="chk-base-price">$29.00</span>
+                </div>
+                <div class="checkout-summary-row">
+                    <span>Custom Additions:</span>
+                    <span id="chk-additions-price">$0.00</span>
+                </div>
+                <div class="checkout-summary-row" id="chk-discount-row" style="display: none; color: #38a169; font-weight: 600;">
+                    <span>Promo Discount:</span>
+                    <span id="chk-discount-price">-$0.00</span>
+                </div>
+                <div class="checkout-summary-row total">
+                    <span>Grand Total:</span>
+                    <span id="chk-total-price">$29.00</span>
+                </div>
+            </div>
+            
+            <!-- Shipping & Details Form -->
+            <form id="checkout-shipping-form" onsubmit="event.preventDefault();">
+                <div class="luxury-input-group">
+                    <label>Shipping Address</label>
+                    <input type="text" id="chk-address-input" class="luxury-input" placeholder="e.g. 74 Luxury Boulevard, Sector 5" required>
+                </div>
+                <div class="luxury-input-group">
+                    <label>Phone Number</label>
+                    <input type="tel" id="chk-phone-input" class="luxury-input" placeholder="e.g. +91 9988776655" required>
+                </div>
+                
+                <!-- Coupon Input -->
+                <div class="luxury-input-group">
+                    <label>Promo Coupon Code</label>
+                    <div class="coupon-row">
+                        <input type="text" id="chk-coupon-input" class="luxury-input" placeholder="e.g. WINGS50, WELCOME10" style="text-transform: uppercase;">
+                        <button type="button" id="chk-apply-coupon" class="apply-coupon-btn">Apply</button>
+                    </div>
+                    <span id="chk-coupon-status" style="font-size: 0.8rem; display: block; margin-top: -10px;"></span>
+                </div>
+                
+                <!-- Gateway Selector -->
+                <div class="luxury-input-group">
+                    <label>Select Payment Gateway</label>
+                    <div class="payment-selector">
+                        <div class="payment-opt active" data-gateway="razorpay" id="pay-opt-razorpay">
+                            <i class="fa-solid fa-credit-card"></i>
+                            <span style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Razorpay</span>
+                            <span style="font-size: 0.65rem; color: var(--light-brown);">Cards/UPI/Net</span>
+                        </div>
+                        <div class="payment-opt" data-gateway="cashfree" id="pay-opt-cashfree">
+                            <i class="fa-solid fa-wallet"></i>
+                            <span style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase;">Cashfree</span>
+                            <span style="font-size: 0.65rem; color: var(--light-brown);">Fast Checkout</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <button type="submit" id="chk-place-order-btn" class="cta-button" style="margin: 0; width: 100%; border: none; cursor: pointer;">Proceed to Secure Payment</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Admin Control Panel deck (Simulator Trigger) -->
+    <div class="admin-deck-trigger" id="admin-deck-open" title="Open Admin Control Panel">
+        <i class="fa-solid fa-user-shield"></i>
+    </div>
+    
+    <div class="admin-drawer" id="admin-control-drawer">
+        <div class="admin-header">
+            <h3>Admin Deck</h3>
+            <button class="admin-close-btn" id="admin-deck-close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--light-brown); margin-bottom: 1rem;">Wings Jewellers Operations Simulator Panel</p>
+        
+        <div class="admin-sec-title">Reviews Moderation</div>
+        <div style="background: white; border: 1px solid rgba(166,139,124,0.15); border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
+            <p style="font-size: 0.8rem; margin-bottom: 0.8rem;" id="admin-reviews-pending-label">Pending Reviews: 0</p>
+            <button class="cta-button" id="admin-approve-reviews-btn" style="margin: 0; padding: 0.6rem 1.2rem; font-size: 0.75rem; border: none; width: 100%; cursor: pointer;">Approve Pending Reviews</button>
+        </div>
+        
+        <div class="admin-sec-title">Inventory Alerts Threshold</div>
+        <div style="background: white; border: 1px solid rgba(166,139,124,0.15); border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
+            <p style="font-size: 0.8rem; margin-bottom: 0.8rem;">Adjust stock limits to alert low counts:</p>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem;">
+                <span style="font-size: 0.85rem; font-weight: 600;">Alert Threshold:</span>
+                <span id="admin-threshold-num" style="font-weight: bold; color: var(--accent-gold);">5</span>
+            </div>
+            <input type="range" id="admin-threshold-slider" min="1" max="15" value="5" style="width: 100%; margin-bottom: 0.8rem;">
+            <button class="cta-button" id="admin-replenish-stock" style="margin: 0; padding: 0.6rem 1.2rem; font-size: 0.75rem; border: none; width: 100%; cursor: pointer; background: var(--light-brown);">Replenish Catalog Stock</button>
+        </div>
+        
+        <div class="admin-sec-title">Issue Promo Coupon</div>
+        <div style="background: white; border: 1px solid rgba(166,139,124,0.15); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;">
+            <input type="text" id="admin-new-coupon-code" class="luxury-input" placeholder="COUPON_CODE" style="margin-bottom: 0.8rem; padding: 0.6rem 1rem; text-transform: uppercase;">
+            <div style="display: flex; gap: 8px; margin-bottom: 0.8rem;">
+                <input type="number" id="admin-new-coupon-val" class="luxury-input" placeholder="Value (e.g., 20)" style="padding: 0.6rem 1rem;">
+                <select id="admin-new-coupon-type" class="luxury-input" style="padding: 0.6rem 1rem; width: 120px;">
+                    <option value="percent">% Off</option>
+                    <option value="flat">Flat $</option>
+                </select>
+            </div>
+            <button class="cta-button" id="admin-create-coupon-btn" style="margin: 0; padding: 0.6rem 1.2rem; font-size: 0.75rem; border: none; width: 100%; cursor: pointer;">Generate Code</button>
+        </div>
+    </div>
+
+    <!-- Email Notification Mock Drawer -->
+    <div class="email-drawer" id="email-notif-drawer">
+        <div class="email-header">
+            <span><i class="fa-regular fa-envelope"></i> Transaction Mailbox</span>
+            <button id="email-drawer-close" style="background: none; border: none; color: white; cursor: pointer; font-size: 1.2rem;"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="email-body-content">
+            <div class="email-envelope" id="email-message-body">
+                <div style="text-align: center; margin-bottom: 1.5rem; border-bottom: 1px solid #e2e8f0; padding-bottom: 1rem;">
+                    <img src="logo.jpg" alt="Wings Logo" style="height: 45px; border-radius: 6px;">
+                    <h4 style="font-family: 'Playfair Display', serif; color: var(--dark-brown); font-size: 1.2rem; margin-top: 5px;">Wings Jewellers</h4>
+                </div>
+                <p style="font-size: 0.9rem; color: #475569; margin-bottom: 1rem;">Hello Guest,</p>
+                <p style="font-size: 0.9rem; color: #475569; line-height: 1.5; margin-bottom: 1rem;" id="email-intro-text">You have no new messages in your inbox. Customize a piece of luxury jewelry and checkout to receive order confirmations here!</p>
+                
+                <div id="email-order-details" style="display: none; background: #faf5f0; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; border: 1px solid rgba(212,175,55,0.15);">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; font-weight: 600; color: var(--light-brown); margin-bottom: 8px;">
+                        <span>ORDER ID: <span id="email-order-id" style="color: var(--dark-brown);">W-0000</span></span>
+                        <span>STATUS: <span id="email-order-status" style="color: #38a169;">PAID</span></span>
+                    </div>
+                    <div style="font-size: 0.85rem; color: var(--dark-brown); margin-top: 8px; border-top: 1px dashed #e2e8f0; padding-top: 8px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+                            <span id="email-item-name">Custom Necklace</span>
+                            <span id="email-item-total">$29.00</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <p style="font-size: 0.8rem; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 1rem; margin-top: 1.5rem;">
+                    &copy; 2026 Wings Jewellers Inc. | Fast Insured Shipping Across India
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Invoice Download print workspace -->
+    <div id="invoice-print-area">
+        <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #1a202c; padding-bottom: 20px; margin-bottom: 30px;">
+            <div>
+                <h1 style="font-size: 2.2rem; font-family: 'Playfair Display', serif; margin: 0; color: #1a202c;">Wings Jewellers</h1>
+                <p style="font-size: 0.85rem; color: #718096; margin: 5px 0 0 0;">Premium Korean Jewelry Collections & Bespoke Custom Studio</p>
+            </div>
+            <div style="text-align: right;">
+                <h2 style="font-size: 1.5rem; margin: 0; color: #1a202c;">TAX INVOICE</h2>
+                <p style="font-size: 0.85rem; color: #718096; margin: 5px 0 0 0;" id="invoice-num-lbl">Invoice #: INV-000000</p>
+            </div>
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-bottom: 40px; font-size: 0.9rem;">
+            <div>
+                <h3 style="margin-top: 0; margin-bottom: 10px; color: #4a5568;">BILLED TO:</h3>
+                <p style="font-weight: bold; margin: 0 0 5px 0;">Valued Wings Patron</p>
+                <p style="margin: 0 0 5px 0;" id="inv-shipping-address">Luxury Residence Boulevard</p>
+                <p style="margin: 0;" id="inv-shipping-phone">Phone: +91 999999999</p>
+            </div>
+            <div style="text-align: right;">
+                <h3 style="margin-top: 0; margin-bottom: 10px; color: #4a5568;">TRANSACTION DETAILS:</h3>
+                <p style="margin: 0 0 5px 0;">Date: <span id="inv-date-lbl">May 29, 2026</span></p>
+                <p style="margin: 0 0 5px 0;">Payment Mode: <span id="inv-payment-mode">Razorpay Secure</span></p>
+                <p style="margin: 0;">Payment Status: <strong style="color: #2f855a;">PAID</strong></p>
+            </div>
+        </div>
+        
+        <table style="width: 100%; border-collapse: collapse; margin-bottom: 40px; font-size: 0.9rem;">
+            <thead>
+                <tr style="border-bottom: 2px solid #718096; text-align: left; color: #4a5568;">
+                    <th style="padding: 10px 0;">ITEM DESCRIPTION</th>
+                    <th style="padding: 10px 0; text-align: center;">QTY</th>
+                    <th style="padding: 10px 0; text-align: right;">UNIT PRICE</th>
+                    <th style="padding: 10px 0; text-align: right;">TOTAL</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 15px 0;" id="inv-product-desc-title">Wings of Elegance Custom Pendant (Rose Gold, wing charm, diamond centerpiece)</td>
+                    <td style="padding: 15px 0; text-align: center;">1</td>
+                    <td style="padding: 15px 0; text-align: right;" id="inv-unit-price-val">$29.00</td>
+                    <td style="padding: 15px 0; text-align: right;" id="inv-total-price-val">$29.00</td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <div style="display: flex; justify-content: flex-end; font-size: 0.9rem;">
+            <div style="width: 250px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span>Subtotal:</span>
+                    <span id="inv-subtotal-val">$29.00</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; color: #2f855a; font-weight: 600; display: none;" id="inv-discount-row">
+                    <span>Discount:</span>
+                    <span id="inv-discount-val">-$0.00</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span>CGST/SGST (3%):</span>
+                    <span id="inv-tax-val">$0.87</span>
+                </div>
+                <div style="display: flex; justify-content: space-between; border-top: 2px solid #1a202c; padding-top: 10px; font-weight: bold; font-size: 1.1rem; margin-top: 10px;">
+                    <span>Grand Total:</span>
+                    <span id="inv-grandtotal-val">$29.87</span>
+                </div>
+            </div>
+        </div>
+        
+        <div style="margin-top: 60px; border-top: 1px solid #e2e8f0; padding-top: 20px; text-align: center; font-size: 0.8rem; color: #a0aec0;">
+            Thank you for shopping with Wings Jewellers. This is a computer-generated invoice and requires no physical signature.
+        </div>
+    </div>
+
+    <!-- Inventory Alerts Bar -->
+    <div id="stock-alerts-banner" class="stock-alert-bar" style="display: none;">
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        <span><strong>Inventory Warning:</strong> A best-selling item is running extremely low in stock. Replenish immediately.</span>
     </div>
 
     <script src="main.js"></script>

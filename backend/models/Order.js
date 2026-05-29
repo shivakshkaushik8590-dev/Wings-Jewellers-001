@@ -107,6 +107,12 @@ const orderSchema = new mongoose.Schema({
   razorpayOrderId: {
     type: String
   },
+  cashfreeOrderId: {
+    type: String
+  },
+  paymentSessionId: {
+    type: String
+  },
   trackingHistory: [{
     status: String,
     description: String,

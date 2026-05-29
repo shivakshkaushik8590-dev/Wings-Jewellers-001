@@ -793,21 +793,574 @@ function initCustomizer() {
         });
     }
 
-    // Add to cart button
+    // Add to cart button -> Opens Bespoke Checkout modal
     const addToCartBtn = document.getElementById('add-to-cart-design');
     if (addToCartBtn) {
         addToCartBtn.addEventListener('click', () => {
             triggerSparkle();
             const rect = addToCartBtn.getBoundingClientRect();
             triggerSparkle(rect.left + rect.width / 2, rect.top + rect.height / 2);
-            alert('Your bespoke jewellery design has been added to your shopping cart!');
+            openCheckout();
         });
     }
 
-    // Initial load sync and draw
+    // Initial load sync, draw, and display reviews
     syncUIWithState();
     updateJewelryRender();
+    displayReviews();
+    checkLowStockAlerts();
 }
+
+// ==========================================
+// E-COMMERCE HUB EXTENSION SYSTEM
+// ==========================================
+
+// State Databases
+const ECommerceDB = {
+    reviews: [
+        { id: 1, user: "Elena Park", rating: 5, comment: "Absolutely breathtaking! The Rose Gold Wings of Elegance pendant is extremely light-weight and sparkles with true Korean sophistication.", isApproved: true },
+        { id: 2, user: "Ji-Woo Kim", rating: 5, comment: "I customized a Moon pendant in pure Silver with a teardrop sapphire. The design studio was so fluid and easy to use. INSANE detail!", isApproved: true }
+    ],
+    coupons: [
+        { code: "WINGS50", type: "flat", value: 50.0 },
+        { code: "WELCOME10", type: "percent", value: 10.0 }
+    ],
+    orders: {},
+    activeCoupon: null,
+    stockThreshold: 5,
+    catalogStock: {
+        "Butterfly Whisper Necklace": 4, // low stock!
+        "Tiny Heart Bracelet": 12,
+        "Butterfly Charm Anklet": 8
+    }
+};
+
+// Review star selection
+const starsSelector = document.getElementById('stars-selector');
+let selectedReviewRating = 5;
+
+if (starsSelector) {
+    // Init active stars
+    const stars = starsSelector.querySelectorAll('i');
+    const updateStarsUI = (val) => {
+        stars.forEach((star, idx) => {
+            star.classList.toggle('active', idx < val);
+        });
+    };
+    updateStarsUI(selectedReviewRating);
+
+    stars.forEach(star => {
+        star.addEventListener('click', () => {
+            selectedReviewRating = parseInt(star.dataset.rating);
+            updateStarsUI(selectedReviewRating);
+        });
+    });
+}
+
+// Load & display reviews
+const displayReviews = () => {
+    const listContainer = document.getElementById('reviews-display-list');
+    if (!listContainer) return;
+
+    const approved = ECommerceDB.reviews.filter(r => r.isApproved);
+    if (approved.length === 0) {
+        listContainer.innerHTML = `<p style="color: var(--light-brown); font-style: italic;">No reviews published yet. Be the first to custom design one and review it!</p>`;
+        return;
+    }
+
+    listContainer.innerHTML = approved.map(r => {
+        const starsHTML = Array(r.rating).fill('<i class="fa-solid fa-star"></i>').join('') + 
+                          Array(5 - r.rating).fill('<i class="fa-regular fa-star"></i>').join('');
+        return `
+            <div class="review-item-card" style="animation: fadeInUp 0.6s forwards; margin-bottom: 12px;">
+                <div class="review-item-header">
+                    <span class="review-item-user">${r.user}</span>
+                    <span class="review-item-stars">${starsHTML}</span>
+                </div>
+                <p style="color: var(--light-brown); font-size: 0.9rem;">"${r.comment}"</p>
+            </div>
+        `;
+    }).join('');
+};
+
+// Submit review form
+const reviewForm = document.getElementById('review-form');
+if (reviewForm) {
+    reviewForm.addEventListener('submit', () => {
+        const nameInput = document.getElementById('review-user-input');
+        const commentInput = document.getElementById('review-comment-input');
+        
+        if (nameInput && commentInput) {
+            const newRev = {
+                id: ECommerceDB.reviews.length + 1,
+                user: nameInput.value,
+                rating: selectedReviewRating,
+                comment: commentInput.value,
+                isApproved: false // Admin must approve
+            };
+            ECommerceDB.reviews.push(newRev);
+            
+            nameInput.value = '';
+            commentInput.value = '';
+            
+            alert('Thank you! Your custom jewelry review has been submitted for moderation. You can approve it instantly via the Admin Panel on the bottom left.');
+            updateAdminReviewPendingCount();
+        }
+    });
+}
+
+// Checkout modal actions
+const chkModal = document.getElementById('checkout-modal-overlay');
+const openCheckout = () => {
+    if (!chkModal) return;
+    
+    // Calculate prices from customizerState
+    calculatePrice();
+    const baseCostText = document.getElementById('summary-base-price').textContent;
+    const addCostText = document.getElementById('summary-additions-price').textContent;
+    const totalCostText = document.getElementById('summary-total-price').textContent;
+
+    document.getElementById('chk-base-price').textContent = baseCostText;
+    document.getElementById('chk-additions-price').textContent = addCostText;
+    
+    ECommerceDB.activeCoupon = null;
+    document.getElementById('chk-discount-row').style.display = 'none';
+    document.getElementById('chk-coupon-input').value = '';
+    document.getElementById('chk-coupon-status').textContent = '';
+    
+    document.getElementById('chk-total-price').textContent = totalCostText;
+
+    chkModal.classList.add('active');
+};
+
+const closeCheckout = () => {
+    if (chkModal) chkModal.classList.remove('active');
+};
+
+document.getElementById('close-checkout-modal')?.addEventListener('click', closeCheckout);
+
+// Apply Coupon
+const applyCouponBtn = document.getElementById('chk-apply-coupon');
+if (applyCouponBtn) {
+    applyCouponBtn.addEventListener('click', () => {
+        const input = document.getElementById('chk-coupon-input');
+        const status = document.getElementById('chk-coupon-status');
+        const code = input.value.trim().toUpperCase();
+
+        if (!code) return;
+
+        const coupon = ECommerceDB.coupons.find(c => c.code === code);
+        if (coupon) {
+            ECommerceDB.activeCoupon = coupon;
+            
+            const baseCost = parseFloat(document.getElementById('chk-base-price').textContent.replace('$', ''));
+            const additionsCost = parseFloat(document.getElementById('chk-additions-price').textContent.replace('$', ''));
+            const subtotal = baseCost + additionsCost;
+            
+            let discount = 0;
+            if (coupon.type === 'percent') {
+                discount = (subtotal * coupon.value) / 100;
+            } else {
+                discount = coupon.value;
+            }
+            
+            discount = Math.min(discount, subtotal);
+            const grandTotal = subtotal - discount;
+
+            document.getElementById('chk-discount-price').textContent = `-$${discount.toFixed(2)}`;
+            document.getElementById('chk-discount-row').style.display = 'flex';
+            document.getElementById('chk-total-price').textContent = `$${grandTotal.toFixed(2)}`;
+
+            status.textContent = 'Success: Promo code applied successfully!';
+            status.style.color = '#38a169';
+        } else {
+            status.textContent = 'Error: Invalid, expired, or inactive coupon code.';
+            status.style.color = '#e53e3e';
+        }
+    });
+}
+
+// Payment Gateway Toggles
+const payOptRazorpay = document.getElementById('pay-opt-razorpay');
+const payOptCashfree = document.getElementById('pay-opt-cashfree');
+let selectedGateway = 'razorpay';
+
+if (payOptRazorpay && payOptCashfree) {
+    payOptRazorpay.addEventListener('click', () => {
+        payOptRazorpay.classList.add('active');
+        payOptCashfree.classList.remove('active');
+        selectedGateway = 'razorpay';
+    });
+
+    payOptCashfree.addEventListener('click', () => {
+        payOptCashfree.classList.add('active');
+        payOptRazorpay.classList.remove('active');
+        selectedGateway = 'cashfree';
+    });
+}
+
+// Place Order Securely (Dynamically inject Razorpay Checkout when selected)
+const checkoutShippingForm = document.getElementById('checkout-shipping-form');
+if (checkoutShippingForm) {
+    checkoutShippingForm.addEventListener('submit', () => {
+        const address = document.getElementById('chk-address-input').value;
+        const phone = document.getElementById('chk-phone-input').value;
+        const amountText = document.getElementById('chk-total-price').textContent;
+        const amount = parseFloat(amountText.replace('$', ''));
+        
+        const orderId = `WINGS-${Math.floor(100000 + Math.random() * 900000)}`;
+
+        closeCheckout();
+        
+        // Build mock order object
+        const order = {
+            orderId,
+            address,
+            phone,
+            amount,
+            gateway: selectedGateway,
+            customizerState: JSON.parse(JSON.stringify(customizerState)),
+            status: 'Pending',
+            date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+        };
+        
+        ECommerceDB.orders[orderId] = order;
+
+        if (selectedGateway === 'razorpay') {
+            // Load Razorpay Checkouts script dynamically
+            if (!window.Razorpay) {
+                const script = document.createElement('script');
+                script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+                script.onload = () => initiateRazorpayCheckout(order);
+                document.body.appendChild(script);
+            } else {
+                initiateRazorpayCheckout(order);
+            }
+        } else {
+            // Simulate Cashfree checkout redirects
+            alert(`Redirecting to secure Cashfree Payments window...`);
+            setTimeout(() => {
+                simulatePaymentSuccess(order);
+            }, 1500);
+        }
+    });
+}
+
+// Initiate Razorpay Checkout Window
+function initiateRazorpayCheckout(order) {
+    const options = {
+        key: "rzp_test_mockKeyId123",
+        amount: Math.round(order.amount * 100), // in paise
+        currency: "INR",
+        name: "Wings Jewellers",
+        description: "Bespoke Jewelry Customizer Piece",
+        image: "logo.jpg",
+        handler: function (response) {
+            simulatePaymentSuccess(order, response.razorpay_payment_id || `pay_mock_rzp_${Date.now()}`);
+        },
+        prefill: {
+            contact: order.phone,
+            email: "customer@wingsjewellers.com"
+        },
+        notes: {
+            address: order.address
+        },
+        theme: {
+            color: "#D4AF37"
+        }
+    };
+
+    const rzp = new Razorpay(options);
+    rzp.open();
+}
+
+// Simulate Payment Success, stock reduction, notifications
+function simulatePaymentSuccess(order, transactionId = `pay_mock_cf_${Date.now()}`) {
+    order.status = 'Processing';
+    order.transactionId = transactionId;
+
+    // Inventory Stock Reduction
+    if (order.customizerState.baseShape !== 'none') {
+        // Deduct from customizable inventory
+        ECommerceDB.catalogStock["Butterfly Whisper Necklace"] = Math.max(0, ECommerceDB.catalogStock["Butterfly Whisper Necklace"] - 1);
+        checkLowStockAlerts();
+    }
+
+    // Slide email notification
+    triggerBrandedEmail(order);
+
+    // Success prompt
+    alert(`Payment Success!\nTransaction Verified: ${transactionId}\nOrder ID: ${order.orderId}\n\nYour Wings order has been submitted. Check your transactional email mailbox on the right for confirmation.`);
+    
+    // Auto search tracking
+    const trackingInput = document.getElementById('track-order-id-input');
+    if (trackingInput) {
+        trackingInput.value = order.orderId;
+        searchOrderTracking(order.orderId);
+    }
+}
+
+// Trigger Branded Email Simulator Drawer
+function triggerBrandedEmail(order) {
+    const emailDrawer = document.getElementById('email-notif-drawer');
+    if (!emailDrawer) return;
+
+    document.getElementById('email-intro-text').innerHTML = `
+        Your custom jewelry piece has been successfully paid for and sent to our artisan design studio in Seoul for custom handcrafting!<br><br>
+        Our master silversmiths are currently fabricating your piece according to your custom metrics.
+    `;
+
+    document.getElementById('email-order-id').textContent = order.orderId;
+    document.getElementById('email-order-status').textContent = 'CRAFTING';
+    document.getElementById('email-order-status').style.color = '#D4AF37';
+
+    // Format Custom items
+    let name = "Bespoke " + customizerState.baseType.toUpperCase();
+    if (customizerState.baseShape !== 'none') {
+        name += ` (Metal: ${customizerState.metalType}, Shape: ${customizerState.baseShape}`;
+        if (customizerState.gemstoneType !== 'none') {
+            name += `, Gem: ${customizerState.gemstoneType}`;
+        }
+        name += `)`;
+    }
+
+    document.getElementById('email-item-name').textContent = name;
+    document.getElementById('email-item-total').textContent = `$${order.amount.toFixed(2)}`;
+    document.getElementById('email-order-details').style.display = 'block';
+
+    emailDrawer.classList.add('active');
+}
+
+// Close email drawer
+document.getElementById('email-drawer-close')?.addEventListener('click', () => {
+    document.getElementById('email-notif-drawer')?.classList.remove('active');
+});
+
+// Invoice PDF generator simulation using print styling
+const downloadInvoice = (orderId) => {
+    const order = ECommerceDB.orders[orderId];
+    if (!order) return;
+
+    document.getElementById('invoice-num-lbl').textContent = `Invoice #: INV-${orderId}`;
+    document.getElementById('inv-shipping-address').textContent = order.address;
+    document.getElementById('inv-shipping-phone').textContent = `Phone: ${order.phone}`;
+    document.getElementById('inv-date-lbl').textContent = order.date;
+    document.getElementById('inv-payment-mode').textContent = `${order.gateway.toUpperCase()} Secured Checkout`;
+
+    // Item title description
+    let name = "Bespoke Jewelry Customizer Piece: " + order.customizerState.baseType.toUpperCase();
+    if (order.customizerState.baseShape !== 'none') {
+        name += ` [Base: ${order.customizerState.baseShape.toUpperCase()}, Metal: ${order.customizerState.metalType.toUpperCase()}`;
+        if (order.customizerState.gemstoneType !== 'none') {
+            name += `, Gem: ${order.customizerState.gemstoneType.toUpperCase()}`;
+        }
+        name += `]`;
+    }
+    
+    document.getElementById('inv-product-desc-title').textContent = name;
+    
+    const subtotal = order.amount / 1.03; // calculate subtotal before 3% tax
+    const tax = order.amount - subtotal;
+
+    document.getElementById('inv-unit-price-val').textContent = `$${subtotal.toFixed(2)}`;
+    document.getElementById('inv-total-price-val').textContent = `$${subtotal.toFixed(2)}`;
+    document.getElementById('inv-subtotal-val').textContent = `$${subtotal.toFixed(2)}`;
+    document.getElementById('inv-tax-val').textContent = `$${tax.toFixed(2)}`;
+    document.getElementById('inv-grandtotal-val').textContent = `$${order.amount.toFixed(2)}`;
+
+    window.print();
+};
+
+document.getElementById('invoice-download-trigger')?.addEventListener('click', () => {
+    const trackingInput = document.getElementById('track-order-id-input');
+    if (trackingInput && trackingInput.value.trim()) {
+        downloadInvoice(trackingInput.value.trim());
+    }
+});
+
+// Return & Refund Trigger
+document.getElementById('order-reversal-trigger')?.addEventListener('click', () => {
+    const trackingInput = document.getElementById('track-order-id-input');
+    if (!trackingInput) return;
+
+    const orderId = trackingInput.value.trim();
+    const order = ECommerceDB.orders[orderId];
+    
+    if (order) {
+        if (order.status === 'Processing' || order.status === 'Pending') {
+            const conf = confirm(`Cancel / Return Order ID: ${orderId}?\nThis will reverse the payment of $${order.amount.toFixed(2)} and issue a refund to your ${order.gateway} account.`);
+            if (conf) {
+                order.status = 'Refunded';
+                searchOrderTracking(orderId);
+                
+                // Update email drawer
+                document.getElementById('email-order-status').textContent = 'REFUNDED';
+                document.getElementById('email-order-status').style.color = '#e53e3e';
+                document.getElementById('email-intro-text').innerHTML = `
+                    We have processed your cancel / return request for Order ID: ${orderId}.<br>
+                    Your refund of $${order.amount.toFixed(2)} has been successfully credited back to your original payment account.
+                `;
+                document.getElementById('email-notif-drawer')?.classList.add('active');
+                
+                alert('Order Cancelled successfully. Your full refund is being processed!');
+            }
+        } else if (order.status === 'Refunded') {
+            alert('Order has already been cancelled and refunded.');
+        } else {
+            alert('Orders in Shipped or Delivered status cannot be cancelled instantly. Please contact Wings Concierge via chatbot to initiate an offline return.');
+        }
+    }
+});
+
+// Order Tracking Logic
+const searchOrderTracking = (orderId) => {
+    const order = ECommerceDB.orders[orderId];
+    const panel = document.getElementById('tracking-result-panel');
+    const desc = document.getElementById('tracking-desc-text');
+    
+    if (!panel) return;
+
+    if (!order) {
+        alert('Order ID not found in transaction logs.');
+        panel.style.display = 'none';
+        return;
+    }
+
+    panel.style.display = 'block';
+    
+    const nodes = {
+        placed: document.getElementById('step-node-pending'),
+        crafting: document.getElementById('step-node-processing'),
+        shipped: document.getElementById('step-node-shipped'),
+        delivered: document.getElementById('step-node-delivered')
+    };
+
+    // Reset classes
+    Object.values(nodes).forEach(n => {
+        n.classList.remove('active', 'completed');
+    });
+
+    const progressIndicator = document.getElementById('tracking-progress-indicator');
+
+    if (order.status === 'Pending') {
+        nodes.placed.classList.add('active');
+        progressIndicator.style.width = '0%';
+        desc.textContent = "Awaiting payment verification before handcrafting.";
+    } else if (order.status === 'Processing') {
+        nodes.placed.classList.add('completed');
+        nodes.crafting.classList.add('active');
+        progressIndicator.style.width = '33%';
+        desc.textContent = "Payment Verified! Our master artisans in Seoul are custom handcrafting your design piece.";
+    } else if (order.status === 'Shipped') {
+        nodes.placed.classList.add('completed');
+        nodes.crafting.classList.add('completed');
+        nodes.shipped.classList.add('active');
+        progressIndicator.style.width = '66%';
+        desc.textContent = "Bespoke masterpiece dispatched! Delivery is currently in transit via express carrier.";
+    } else if (order.status === 'Delivered') {
+        nodes.placed.classList.add('completed');
+        nodes.crafting.classList.add('completed');
+        nodes.shipped.classList.add('completed');
+        nodes.delivered.classList.add('active');
+        progressIndicator.style.width = '100%';
+        desc.textContent = "Masterpiece safely delivered! We hope you cherish your Wings Jewellers creation.";
+    } else if (order.status === 'Refunded') {
+        desc.textContent = "Transaction Reversed. Full order value has been refunded.";
+        progressIndicator.style.width = '0%';
+    }
+};
+
+document.getElementById('track-order-btn')?.addEventListener('click', () => {
+    const input = document.getElementById('track-order-id-input');
+    if (input) searchOrderTracking(input.value.trim());
+});
+
+// Admin Deck Drawer Toggles
+const adminDrawer = document.getElementById('admin-control-drawer');
+document.getElementById('admin-deck-open')?.addEventListener('click', () => {
+    adminDrawer?.classList.add('active');
+    updateAdminReviewPendingCount();
+});
+
+document.getElementById('admin-deck-close')?.addEventListener('click', () => {
+    adminDrawer?.classList.remove('active');
+});
+
+// Admin review moderation count
+function updateAdminReviewPendingCount() {
+    const count = ECommerceDB.reviews.filter(r => !r.isApproved).length;
+    const lbl = document.getElementById('admin-reviews-pending-label');
+    if (lbl) lbl.textContent = `Pending Reviews Awaiting Approval: ${count}`;
+}
+
+// Approve Reviews
+document.getElementById('admin-approve-reviews-btn')?.addEventListener('click', () => {
+    let count = 0;
+    ECommerceDB.reviews.forEach(r => {
+        if (!r.isApproved) {
+            r.isApproved = true;
+            count++;
+        }
+    });
+
+    if (count > 0) {
+        alert(`Success: ${count} pending reviews approved for publication.`);
+        displayReviews();
+        updateAdminReviewPendingCount();
+    } else {
+        alert('No pending reviews found.');
+    }
+});
+
+// Admin Inventory Slider & Stock Control
+const stockAlertBar = document.getElementById('stock-alerts-banner');
+const thresholdSlider = document.getElementById('admin-threshold-slider');
+const thresholdNum = document.getElementById('admin-threshold-num');
+
+function checkLowStockAlerts() {
+    if (!stockAlertBar) return;
+    const low = Object.values(ECommerceDB.catalogStock).some(qty => qty < ECommerceDB.stockThreshold);
+    stockAlertBar.style.display = low ? 'flex' : 'none';
+}
+
+if (thresholdSlider && thresholdNum) {
+    thresholdSlider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        ECommerceDB.stockThreshold = val;
+        thresholdNum.textContent = val;
+        checkLowStockAlerts();
+    });
+}
+
+document.getElementById('admin-replenish-stock')?.addEventListener('click', () => {
+    Object.keys(ECommerceDB.catalogStock).forEach(key => {
+        ECommerceDB.catalogStock[key] = 12; // Replenish back to 12
+    });
+    checkLowStockAlerts();
+    alert('Catalog inventory counts successfully replenished back to normal levels!');
+});
+
+// Admin promo coupon issuer
+document.getElementById('admin-create-coupon-btn')?.addEventListener('click', () => {
+    const codeInput = document.getElementById('admin-new-coupon-code');
+    const valInput = document.getElementById('admin-new-coupon-val');
+    const typeSelect = document.getElementById('admin-new-coupon-type');
+
+    if (codeInput && valInput && typeSelect && codeInput.value.trim() && valInput.value) {
+        const code = codeInput.value.trim().toUpperCase();
+        const value = parseFloat(valInput.value);
+        const type = typeSelect.value;
+
+        ECommerceDB.coupons.push({ code, type, value });
+        
+        alert(`Promo coupon generated successfully!\nCode: ${code}\nPromotion: ${value}${type === 'percent' ? '% Off' : ' Flat $'}`);
+        
+        codeInput.value = '';
+        valInput.value = '';
+    } else {
+        alert('Please specify coupon code and value.');
+    }
+});
 
 // Attach load handler
 window.addEventListener('DOMContentLoaded', () => {
