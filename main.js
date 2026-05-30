@@ -2023,9 +2023,387 @@ document.getElementById('admin-create-coupon-btn')?.addEventListener('click', as
     }
 });
 
+// ==========================================
+// PRODUCT DETAIL PAGE (PDP) MODAL ENGINE
+// ==========================================
+
+// Full product catalog data (mock, synced from backend when live)
+const productCatalog = [
+    {
+        id: 'prod_001',
+        name: 'Butterfly Whisper Necklace',
+        price: 29.00, originalPrice: 39.00, discount: 26,
+        category: 'Necklaces',
+        metal: 'Rose Gold 925 Sterling Silver',
+        weight: '3.2g', dimensions: '45cm chain, 1.8cm pendant',
+        stock: 4, rating: 4.8, reviews: 24,
+        description: 'A delicate rose gold necklace featuring a hand-crafted butterfly pendant. Perfect for everyday elegance. Lightweight, hypoallergenic, and inspired by the soft minimalism of Korean jewelry culture.',
+        images: [
+            'https://images.unsplash.com/photo-1599643477877-530eb83abc8e?q=80&w=1887',
+            'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?q=80&w=1887',
+            'https://images.unsplash.com/photo-1535632066927-ab7c9ab60908?q=80&w=1887'
+        ],
+        sampleReviews: [
+            { user: 'Elena Park', rating: 5, comment: 'Absolutely breathtaking! So lightweight and delicate. Got so many compliments!' },
+            { user: 'Ji-Woo Kim', rating: 5, comment: 'The quality is amazing for the price. The butterfly charm is so intricate.' },
+            { user: 'Sarah M.', rating: 4, comment: 'Beautiful piece, arrived in gorgeous packaging. Perfect gift.' }
+        ]
+    },
+    {
+        id: 'prod_002',
+        name: 'Tiny Heart Bracelet',
+        price: 24.00, originalPrice: 24.00, discount: 0,
+        category: 'Bracelets',
+        metal: 'Silver 925 Sterling Silver',
+        weight: '2.5g', dimensions: '18cm adjustable chain',
+        stock: 12, rating: 5.0, reviews: 18,
+        description: 'A slim silver bracelet adorned with a petite heart charm. The adjustable lobster clasp ensures a perfect fit for all wrist sizes. Hypoallergenic and tarnish-resistant.',
+        images: [
+            'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?q=80&w=2070',
+            'https://images.unsplash.com/photo-1635767798638-3e25273a8236?q=80&w=1964',
+            'https://images.unsplash.com/photo-1590548784585-643d2b9f292c?q=80&w=1964'
+        ],
+        sampleReviews: [
+            { user: 'Mia Chen', rating: 5, comment: 'So dainty and elegant. Fits perfectly on my small wrist.' },
+            { user: 'Priya S.', rating: 5, comment: 'Excellent quality, the clasp is very secure. Love it!' }
+        ]
+    },
+    {
+        id: 'prod_003',
+        name: 'Butterfly Charm Anklet',
+        price: 26.00, originalPrice: 32.00, discount: 19,
+        category: 'Anklets',
+        metal: 'Gold-Plated 925 Sterling Silver',
+        weight: '4.1g', dimensions: '22–25cm adjustable',
+        stock: 8, rating: 4.7, reviews: 31,
+        description: 'A graceful gold-plated anklet featuring two hand-crafted butterfly charms that catch the light with every step. Inspired by Korean minimalist fashion. Adjustable for a comfortable, secure fit.',
+        images: [
+            'https://images.unsplash.com/photo-1535633302704-c02fbc751c0a?q=80&w=1887',
+            'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?q=80&w=1887',
+            'https://images.unsplash.com/photo-1590548784585-643d2b9f292c?q=80&w=1964'
+        ],
+        sampleReviews: [
+            { user: 'Anika R.', rating: 5, comment: 'The gold plating looks very premium. Received so many compliments on it!' },
+            { user: 'Lisa T.', rating: 4, comment: 'Very pretty and lightweight. Perfect for summer.' },
+            { user: 'Hana B.', rating: 5, comment: 'Packaging was stunning and the anklet is even more beautiful in person.' }
+        ]
+    }
+];
+
+// Wishlist state (per session)
+const wishlistSet = new Set();
+
+// Helper: render star icons from rating number
+function renderStars(rating) {
+    let html = '';
+    const full = Math.floor(rating);
+    const half = rating % 1 >= 0.5;
+    for (let i = 0; i < full; i++) html += '<i class="fa-solid fa-star"></i>';
+    if (half) html += '<i class="fa-solid fa-star-half-stroke"></i>';
+    for (let i = full + (half ? 1 : 0); i < 5; i++) html += '<i class="fa-regular fa-star"></i>';
+    return html;
+}
+
+// Helper: get stock status class and label
+function getStockInfo(stock) {
+    if (stock === 0) return { cls: 'outofstock', label: 'Out of Stock' };
+    if (stock <= 5) return { cls: 'lowstock', label: `Low Stock — Only ${stock} Left!` };
+    return { cls: 'instock', label: `In Stock (${stock} Available)` };
+}
+
+let pdpCurrentProduct = null;
+let pdpQty = 1;
+
+function openPDP(productId) {
+    const product = productCatalog.find(p => p.id === productId);
+    if (!product) return;
+    pdpCurrentProduct = product;
+    pdpQty = 1;
+
+    const overlay = document.getElementById('pdp-modal-overlay');
+
+    // --- Populate main image ---
+    const mainImg = document.getElementById('pdp-main-img');
+    mainImg.src = product.images[0];
+    mainImg.alt = product.name;
+
+    // --- Discount badge ---
+    const discBadge = document.getElementById('pdp-discount-badge');
+    if (product.discount > 0) {
+        discBadge.textContent = `-${product.discount}% OFF`;
+        discBadge.style.display = 'inline-block';
+    } else {
+        discBadge.style.display = 'none';
+    }
+
+    // --- Thumbnails ---
+    const thumbsContainer = document.getElementById('pdp-thumbnails');
+    thumbsContainer.innerHTML = product.images.map((img, idx) => `
+        <div class="pdp-thumb ${idx === 0 ? 'active' : ''}" data-img="${img}">
+            <img src="${img}" alt="Thumbnail ${idx + 1}">
+        </div>
+    `).join('');
+
+    thumbsContainer.querySelectorAll('.pdp-thumb').forEach(thumb => {
+        thumb.addEventListener('click', () => {
+            mainImg.src = thumb.dataset.img;
+            thumbsContainer.querySelectorAll('.pdp-thumb').forEach(t => t.classList.remove('active'));
+            thumb.classList.add('active');
+        });
+    });
+
+    // --- Category & Title ---
+    document.getElementById('pdp-category').textContent = product.category;
+    document.getElementById('pdp-title').textContent = product.name;
+
+    // --- Rating ---
+    document.getElementById('pdp-stars').innerHTML = renderStars(product.rating);
+    document.getElementById('pdp-review-count').textContent = `${product.rating} · ${product.reviews} reviews`;
+
+    // --- Price ---
+    document.getElementById('pdp-price').textContent = `$${product.price.toFixed(2)}`;
+    const origPriceEl = document.getElementById('pdp-original-price');
+    const savingEl = document.getElementById('pdp-saving-badge');
+    if (product.discount > 0) {
+        origPriceEl.textContent = `$${product.originalPrice.toFixed(2)}`;
+        origPriceEl.style.display = 'inline';
+        const saving = (product.originalPrice - product.price).toFixed(2);
+        savingEl.textContent = `You save $${saving}!`;
+        savingEl.style.display = 'inline-block';
+    } else {
+        origPriceEl.style.display = 'none';
+        savingEl.style.display = 'none';
+    }
+
+    // --- Stock ---
+    const stockInfo = getStockInfo(product.stock);
+    const stockBadge = document.getElementById('pdp-stock-badge');
+    stockBadge.textContent = stockInfo.label;
+    stockBadge.className = `pdp-stock-status ${stockInfo.cls}`;
+
+    // --- Specs ---
+    document.getElementById('pdp-spec-category').textContent = product.category;
+    document.getElementById('pdp-spec-metal').textContent = product.metal;
+    document.getElementById('pdp-spec-weight').textContent = product.weight;
+    document.getElementById('pdp-spec-dimensions').textContent = product.dimensions;
+
+    // --- Description ---
+    document.getElementById('pdp-description').textContent = product.description;
+
+    // --- Quantity ---
+    document.getElementById('pdp-qty-val').textContent = 1;
+
+    // --- Wishlist button state ---
+    const wishlistBtn = document.getElementById('pdp-wishlist-btn');
+    if (wishlistSet.has(product.id)) {
+        wishlistBtn.classList.add('active');
+        wishlistBtn.innerHTML = '<i class="fa-solid fa-heart"></i>';
+    } else {
+        wishlistBtn.classList.remove('active');
+        wishlistBtn.innerHTML = '<i class="fa-regular fa-heart"></i>';
+    }
+
+    // --- Populate PDP Reviews ---
+    const reviewsList = document.getElementById('pdp-reviews-list');
+    const allReviews = [...product.sampleReviews];
+    // Merge any approved ECommerceDB reviews for this product
+    ECommerceDB.reviews.filter(r => r.isApproved).slice(0, 2).forEach(r => {
+        allReviews.push({ user: r.user, rating: r.rating, comment: r.comment });
+    });
+    reviewsList.innerHTML = allReviews.map(r => `
+        <div class="pdp-review-card">
+            <div class="pdp-review-header">
+                <span class="pdp-reviewer-name">${r.user}</span>
+                <span class="pdp-review-stars">${renderStars(r.rating)}</span>
+            </div>
+            <p class="pdp-review-text">"${r.comment}"</p>
+        </div>
+    `).join('');
+
+    // --- Related Products (the other 2 products) ---
+    const related = productCatalog.filter(p => p.id !== product.id);
+    const relatedGrid = document.getElementById('pdp-related-grid');
+    relatedGrid.innerHTML = related.map(p => `
+        <div class="pdp-related-card" data-product-id="${p.id}">
+            <img src="${p.images[0]}" alt="${p.name}">
+            <div class="pdp-related-info">
+                <h4>${p.name}</h4>
+                <span>$${p.price.toFixed(2)}</span>
+            </div>
+        </div>
+    `).join('');
+
+    relatedGrid.querySelectorAll('.pdp-related-card').forEach(card => {
+        card.addEventListener('click', () => {
+            openPDP(card.dataset.productId);
+            overlay.scrollTop = 0;
+        });
+    });
+
+    // --- Show Modal ---
+    overlay.classList.add('active');
+    document.body.style.overflow = 'hidden';
+}
+
+function closePDP() {
+    document.getElementById('pdp-modal-overlay').classList.remove('active');
+    document.body.style.overflow = '';
+    pdpCurrentProduct = null;
+}
+
+function initPDPModal() {
+    // Bind "View Details" buttons on product cards
+    document.querySelectorAll('.pdp-open-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const card = btn.closest('.product-card');
+            if (card) openPDP(card.dataset.id);
+        });
+    });
+
+    // Bind quick wishlist buttons on product cards
+    document.querySelectorAll('.product-wishlist-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const productId = btn.dataset.product;
+            toggleWishlist(productId, btn);
+        });
+    });
+
+    // Close button
+    document.getElementById('pdp-close-btn')?.addEventListener('click', closePDP);
+
+    // Close on overlay backdrop click
+    document.getElementById('pdp-modal-overlay')?.addEventListener('click', (e) => {
+        if (e.target === document.getElementById('pdp-modal-overlay')) closePDP();
+    });
+
+    // Quantity +/-
+    document.getElementById('pdp-qty-minus')?.addEventListener('click', () => {
+        if (pdpQty > 1) {
+            pdpQty--;
+            document.getElementById('pdp-qty-val').textContent = pdpQty;
+        }
+    });
+
+    document.getElementById('pdp-qty-plus')?.addEventListener('click', () => {
+        const maxQty = pdpCurrentProduct ? pdpCurrentProduct.stock : 10;
+        if (pdpQty < maxQty) {
+            pdpQty++;
+            document.getElementById('pdp-qty-val').textContent = pdpQty;
+        }
+    });
+
+    // Wishlist button inside PDP
+    document.getElementById('pdp-wishlist-btn')?.addEventListener('click', () => {
+        if (!pdpCurrentProduct) return;
+        const btn = document.getElementById('pdp-wishlist-btn');
+        toggleWishlist(pdpCurrentProduct.id, btn);
+    });
+
+    // Add to Cart from PDP
+    document.getElementById('pdp-add-to-cart-btn')?.addEventListener('click', () => {
+        if (!pdpCurrentProduct) return;
+        showToast(`✓ ${pdpCurrentProduct.name} added to cart!`);
+        if (isLiveBackend && currentToken) {
+            fetch(`${BACKEND_URL}/api/cart`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                body: JSON.stringify({ productId: pdpCurrentProduct.id, quantity: pdpQty })
+            }).catch(() => {});
+        }
+    });
+
+    // Buy Now from PDP
+    document.getElementById('pdp-buy-now-btn')?.addEventListener('click', () => {
+        if (!pdpCurrentProduct) return;
+        closePDP();
+        // Pre-populate checkout with this product's price
+        const total = (pdpCurrentProduct.price * pdpQty).toFixed(2);
+        document.getElementById('chk-base-price').textContent = `$${total}`;
+        document.getElementById('chk-additions-price').textContent = '$0.00';
+        document.getElementById('chk-total-price').textContent = `$${total}`;
+        document.getElementById('chk-discount-row').style.display = 'none';
+        document.getElementById('chk-coupon-input').value = '';
+        document.getElementById('chk-coupon-status').textContent = '';
+        ECommerceDB.activeCoupon = null;
+        document.getElementById('checkout-modal-overlay').classList.add('active');
+    });
+}
+
+// Wishlist toggle function (used by both product cards and PDP modal)
+async function toggleWishlist(productId, btn) {
+    const isActive = wishlistSet.has(productId);
+
+    if (isActive) {
+        wishlistSet.delete(productId);
+        btn.classList.remove('active');
+        btn.innerHTML = btn.classList.contains('pdp-wishlist-heart-btn')
+            ? '<i class="fa-regular fa-heart"></i>'
+            : '<i class="fa-regular fa-heart"></i>';
+        showToast('Removed from wishlist');
+    } else {
+        wishlistSet.add(productId);
+        btn.classList.add('active');
+        btn.innerHTML = btn.classList.contains('pdp-wishlist-heart-btn')
+            ? '<i class="fa-solid fa-heart"></i>'
+            : '<i class="fa-solid fa-heart"></i>';
+        showToast('❤ Added to wishlist!');
+
+        if (isLiveBackend && currentToken) {
+            try {
+                const product = productCatalog.find(p => p.id === productId);
+                if (product) {
+                    await fetch(`${BACKEND_URL}/api/wishlist`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                        body: JSON.stringify({ productId })
+                    });
+                }
+            } catch (e) { console.error('Wishlist sync error:', e); }
+        }
+    }
+
+    // Sync card wishlist button if PDP is open
+    const cardBtn = document.querySelector(`.product-wishlist-btn[data-product="${productId}"]`);
+    if (cardBtn && cardBtn !== btn) {
+        cardBtn.classList.toggle('active', wishlistSet.has(productId));
+        cardBtn.innerHTML = wishlistSet.has(productId)
+            ? '<i class="fa-solid fa-heart"></i>'
+            : '<i class="fa-regular fa-heart"></i>';
+    }
+}
+
+// Toast notification utility
+let toastTimer;
+function showToast(message) {
+    let toast = document.getElementById('wings-toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'wings-toast';
+        toast.style.cssText = `
+            position: fixed; bottom: 110px; left: 50%; transform: translateX(-50%) translateY(20px);
+            background: var(--dark-brown); color: white; padding: 12px 28px;
+            border-radius: 50px; font-size: 0.85rem; font-weight: 600;
+            z-index: 9999; opacity: 0; transition: all 0.35s ease;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2); white-space: nowrap;
+        `;
+        document.body.appendChild(toast);
+    }
+    clearTimeout(toastTimer);
+    toast.textContent = message;
+    toast.style.opacity = '1';
+    toast.style.transform = 'translateX(-50%) translateY(0)';
+    toastTimer = setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(-50%) translateY(20px)';
+    }, 2800);
+}
+
 // DOMContentLoaded load attachments
 window.addEventListener('DOMContentLoaded', async () => {
     initCustomizer();
     initAuthModal();
+    initPDPModal();
     await checkBackendConnection();
 });

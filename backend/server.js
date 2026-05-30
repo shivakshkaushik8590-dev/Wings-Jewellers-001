@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
 const connectDB = require('./config/db');
 const { notFound, errorHandler } = require('./middleware/errorMiddleware');
 
@@ -33,12 +34,21 @@ app.use(helmet());
 
 // Enable CORS
 app.use(cors({
-  origin: '*', // Allow all origins for API calls
+  origin: process.env.CORS_ORIGIN || '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true  // Required for cookies (refresh tokens)
 }));
 
-// Request Body Parser Middleware
+// Cookie Parser — needed for HTTP-only refresh token cookie
+app.use(cookieParser());
+
+// RAW BODY for Webhook signature verification
+// Must be registered BEFORE express.json() for these specific paths
+app.use('/api/payment/webhook/razorpay', express.raw({ type: 'application/json' }));
+app.use('/api/payment/webhook/cashfree',  express.raw({ type: 'application/json' }));
+
+// Request Body Parser Middleware (JSON for all other routes)
 app.use(express.json());
 
 // HTTP Request Logger Middleware (only in development)

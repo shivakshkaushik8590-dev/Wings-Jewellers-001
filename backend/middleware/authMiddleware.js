@@ -1,47 +1,91 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-// Protect routes - Verify JWT token
+const JWT_SECRET = process.env.JWT_SECRET || 'wings_jewellers_jwt_secret_dev_key_12345';
+
+// --------------------------------------------------
+// PROTECT: Verify JWT access token on every request
+// --------------------------------------------------
 const protect = async (req, res, next) => {
   let token;
 
-  if (
-    req.headers.authorization &&
-    req.headers.authorization.startsWith('Bearer')
-  ) {
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
     try {
-      // Get token from header (Format: Bearer <token>)
       token = req.headers.authorization.split(' ')[1];
 
-      // Verify token
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'wings_jewellers_jwt_secret_dev_key_12345');
+      // Verify the short-lived access token
+      const decoded = jwt.verify(token, JWT_SECRET);
 
-      // Get user from the database, exclude password
-      req.user = await User.findById(decoded.id).select('-password');
+      // Attach user to request (exclude sensitive fields)
+      req.user = await User.findById(decoded.id).select('-password -refreshToken');
 
       if (!req.user) {
-        return res.status(401).json({ success: false, message: 'User not found' });
+        return res.status(401).json({
+          success: false,
+          message: 'User account not found. Token may be outdated.'
+        });
       }
 
       next();
     } catch (error) {
-      console.error(error);
-      return res.status(401).json({ success: false, message: 'Not authorized, token failed' });
+      // Distinguish between expired and invalid tokens
+      if (error.name === 'TokenExpiredError') {
+        return res.status(401).json({
+          success: false,
+          code: 'TOKEN_EXPIRED',
+          message: 'Access token has expired. Please use /api/auth/refresh to get a new one.'
+        });
+      }
+      return res.status(401).json({
+        success: false,
+        code: 'TOKEN_INVALID',
+        message: 'Not authorized — invalid token signature.'
+      });
     }
   }
 
   if (!token) {
-    return res.status(401).json({ success: false, message: 'Not authorized, no token provided' });
+    return res.status(401).json({
+      success: false,
+      code: 'NO_TOKEN',
+      message: 'Not authorized — no access token provided in Authorization header.'
+    });
   }
 };
 
-// Grant access to specific roles (e.g. Admin)
+// --------------------------------------------------
+// ADMIN: Restrict to admin-role users only
+// --------------------------------------------------
 const admin = (req, res, next) => {
   if (req.user && req.user.role === 'admin') {
     next();
   } else {
-    return res.status(403).json({ success: false, message: 'Access denied, administrator role required' });
+    return res.status(403).json({
+      success: false,
+      code: 'FORBIDDEN',
+      message: 'Access denied — administrator role is required for this action.'
+    });
   }
 };
 
-module.exports = { protect, admin };
+// --------------------------------------------------
+// OPTIONAL AUTH: Attach user if token exists, but
+// don't block the request if it doesn't (for public
+// routes that benefit from knowing who the user is)
+// --------------------------------------------------
+const optionalAuth = async (req, res, next) => {
+  let token;
+  if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    try {
+      token = req.headers.authorization.split(' ')[1];
+      const decoded = jwt.verify(token, JWT_SECRET);
+      req.user = await User.findById(decoded.id).select('-password -refreshToken');
+    } catch (e) {
+      // Token invalid/expired — continue without user context
+      req.user = null;
+    }
+  }
+  next();
+};
+
+module.exports = { protect, admin, optionalAuth };

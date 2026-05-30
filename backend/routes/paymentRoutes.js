@@ -362,4 +362,201 @@ router.post('/cashfree/verify', protect, async (req, res, next) => {
   }
 });
 
+// --------------------------------------------------
+// 4. RAZORPAY WEBHOOK
+// @route   POST /api/payment/webhook/razorpay
+// @access  Public (Razorpay servers — verified by signature)
+// --------------------------------------------------
+
+// IMPORTANT: This route needs raw body for signature verification.
+// Ensure express.raw({ type: 'application/json' }) is applied BEFORE
+// express.json() in server.js for this specific path.
+router.post('/webhook/razorpay', express.raw({ type: 'application/json' }), async (req, res, next) => {
+  const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET || 'razorpay_webhook_secret_dev';
+
+  try {
+    // 1. Verify Razorpay webhook signature
+    const razorpaySignature = req.headers['x-razorpay-signature'];
+    if (!razorpaySignature) {
+      return res.status(400).json({ success: false, message: 'Missing webhook signature header' });
+    }
+
+    const expectedSignature = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(req.body) // raw Buffer body
+      .digest('hex');
+
+    if (expectedSignature !== razorpaySignature) {
+      console.warn('[Razorpay Webhook] Invalid signature — potential spoofed request');
+      return res.status(400).json({ success: false, message: 'Webhook signature verification failed' });
+    }
+
+    // 2. Parse and handle the event
+    const event = JSON.parse(req.body.toString());
+    const eventType = event.event;
+
+    console.log(`[Razorpay Webhook] Event received: ${eventType}`);
+
+    if (eventType === 'payment.captured') {
+      const paymentEntity = event.payload.payment.entity;
+      const razorpayOrderId = paymentEntity.order_id;
+
+      // Find the matching order by cashfreeOrderId (reused for general gateway order ID)
+      const order = await Order.findOne({ cashfreeOrderId: razorpayOrderId });
+
+      if (order && !order.isPaid) {
+        order.isPaid = true;
+        order.paidAt = new Date();
+        order.orderStatus = 'Processing';
+        order.paymentMethod = 'Razorpay';
+        order.paymentResult = {
+          cfPaymentId: paymentEntity.id,
+          paymentStatus: 'PAID',
+          paymentMessage: 'Razorpay webhook: payment.captured event received',
+          paymentTime: new Date(paymentEntity.created_at * 1000).toISOString()
+        };
+
+        order.trackingHistory.push({
+          status: 'Processing',
+          description: 'Payment confirmed via Razorpay webhook. Order is being processed.'
+        });
+
+        await order.save();
+
+        // Decrement inventory for all ordered items
+        for (const item of order.orderItems) {
+          if (item.product) {
+            const product = await Product.findById(item.product);
+            if (product) {
+              product.inventory = Math.max(0, product.inventory - item.quantity);
+              await product.save();
+            }
+          }
+        }
+
+        console.log(`[Razorpay Webhook] Order ${order._id} marked as PAID`);
+      }
+    } else if (eventType === 'payment.failed') {
+      const paymentEntity = event.payload.payment.entity;
+      const razorpayOrderId = paymentEntity.order_id;
+      const order = await Order.findOne({ cashfreeOrderId: razorpayOrderId });
+
+      if (order) {
+        order.trackingHistory.push({
+          status: order.orderStatus,
+          description: `Razorpay webhook: payment.failed — ${paymentEntity.error_description || 'Unknown error'}`
+        });
+        await order.save();
+        console.warn(`[Razorpay Webhook] Payment failed for order ${order._id}`);
+      }
+    } else if (eventType === 'refund.processed') {
+      console.log('[Razorpay Webhook] Refund processed event received');
+    }
+
+    // Always respond 200 OK quickly to Razorpay
+    res.status(200).json({ success: true, message: 'Webhook received' });
+  } catch (error) {
+    console.error('[Razorpay Webhook] Error:', error.message);
+    // Still return 200 to avoid Razorpay retrying
+    res.status(200).json({ success: true, message: 'Webhook received with errors' });
+  }
+});
+
+// --------------------------------------------------
+// 5. CASHFREE WEBHOOK
+// @route   POST /api/payment/webhook/cashfree
+// @access  Public (Cashfree servers — verified by signature)
+// --------------------------------------------------
+router.post('/webhook/cashfree', express.raw({ type: 'application/json' }), async (req, res, next) => {
+  const webhookSecret = process.env.CASHFREE_WEBHOOK_SECRET || 'cashfree_webhook_secret_dev';
+
+  try {
+    // 1. Verify Cashfree webhook signature
+    // Cashfree uses: HMAC-SHA256(timestamp + raw_body, secret)
+    const cfSignature = req.headers['x-webhook-signature'];
+    const cfTimestamp = req.headers['x-webhook-timestamp'];
+
+    if (!cfSignature || !cfTimestamp) {
+      return res.status(400).json({ success: false, message: 'Missing Cashfree webhook headers' });
+    }
+
+    const rawBody = req.body.toString();
+    const signaturePayload = cfTimestamp + rawBody;
+
+    const expectedSignature = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(signaturePayload)
+      .digest('base64');
+
+    if (expectedSignature !== cfSignature) {
+      console.warn('[Cashfree Webhook] Invalid signature — potential spoofed request');
+      return res.status(400).json({ success: false, message: 'Webhook signature verification failed' });
+    }
+
+    // 2. Parse and handle the event
+    const event = JSON.parse(rawBody);
+    const eventType = event.type;
+    const data = event.data;
+
+    console.log(`[Cashfree Webhook] Event received: ${eventType}`);
+
+    if (eventType === 'PAYMENT_SUCCESS_WEBHOOK') {
+      const cfOrderId = data.order?.order_id;
+      const order = await Order.findOne({ cashfreeOrderId: cfOrderId });
+
+      if (order && !order.isPaid) {
+        order.isPaid = true;
+        order.paidAt = new Date();
+        order.orderStatus = 'Processing';
+        order.paymentMethod = 'Cashfree';
+        order.paymentResult = {
+          cfPaymentId: data.payment?.cf_payment_id?.toString() || cfOrderId,
+          paymentStatus: 'PAID',
+          paymentMessage: 'Cashfree webhook: PAYMENT_SUCCESS_WEBHOOK received',
+          paymentTime: data.payment?.payment_time || new Date().toISOString()
+        };
+
+        order.trackingHistory.push({
+          status: 'Processing',
+          description: 'Payment confirmed via Cashfree webhook. Order is being processed.'
+        });
+
+        await order.save();
+
+        // Decrement inventory
+        for (const item of order.orderItems) {
+          if (item.product) {
+            const product = await Product.findById(item.product);
+            if (product) {
+              product.inventory = Math.max(0, product.inventory - item.quantity);
+              await product.save();
+            }
+          }
+        }
+
+        console.log(`[Cashfree Webhook] Order ${order._id} marked as PAID`);
+      }
+    } else if (eventType === 'PAYMENT_FAILED_WEBHOOK') {
+      const cfOrderId = data.order?.order_id;
+      const order = await Order.findOne({ cashfreeOrderId: cfOrderId });
+
+      if (order) {
+        order.trackingHistory.push({
+          status: order.orderStatus,
+          description: `Cashfree webhook: PAYMENT_FAILED — ${data.payment?.payment_message || 'Payment declined'}`
+        });
+        await order.save();
+        console.warn(`[Cashfree Webhook] Payment failed for order ${order._id}`);
+      }
+    } else if (eventType === 'REFUND_STATUS_WEBHOOK') {
+      console.log('[Cashfree Webhook] Refund status event received');
+    }
+
+    res.status(200).json({ success: true, message: 'Webhook received' });
+  } catch (error) {
+    console.error('[Cashfree Webhook] Error:', error.message);
+    res.status(200).json({ success: true, message: 'Webhook received with errors' });
+  }
+});
+
 module.exports = router;
