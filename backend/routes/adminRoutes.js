@@ -5,6 +5,7 @@ const User = require('../models/User');
 const Review = require('../models/Review');
 const Coupon = require('../models/Coupon');
 const { protect, admin } = require('../middleware/authMiddleware');
+const { validateCoupon } = require('../middleware/validationMiddleware');
 
 const router = express.Router();
 
@@ -123,7 +124,7 @@ router.get('/coupons', protect, admin, async (req, res, next) => {
 // @desc    Create a new coupon
 // @route   POST /api/admin/coupons
 // @access  Private/Admin
-router.post('/coupons', protect, admin, async (req, res, next) => {
+router.post('/coupons', protect, admin, validateCoupon, async (req, res, next) => {
   const { code, discountType, discountValue, minPurchase, expiryDate } = req.body;
 
   try {

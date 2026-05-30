@@ -1577,3 +1577,113 @@ footer {
         display: block !important;
     }
 }
+
+/* ========================================================
+   WINGS JEWELLERS - DYNAMIC USER AUTH & DATABASE INDICATORS
+   ======================================================== */
+
+/* Connection Status Badges */
+.connection-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-bottom: 15px;
+    transition: var(--transition);
+}
+
+.connection-status-badge.live {
+    background: rgba(56, 161, 105, 0.1);
+    color: #38a169;
+    border: 1px solid rgba(56, 161, 105, 0.25);
+    box-shadow: 0 0 10px rgba(56, 161, 105, 0.1);
+}
+
+.connection-status-badge.mock {
+    background: rgba(212, 175, 55, 0.1);
+    color: var(--accent-gold);
+    border: 1px solid rgba(212, 175, 55, 0.25);
+    box-shadow: 0 0 10px rgba(212, 175, 55, 0.1);
+}
+
+.connection-status-badge i {
+    font-size: 0.65rem;
+}
+
+/* User displays */
+#user-display-name {
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--dark-brown);
+}
+
+/* Auth Modal elements */
+.auth-tabs {
+    display: flex;
+    gap: 10px;
+    border-bottom: 1px solid rgba(166, 139, 124, 0.15);
+    padding-bottom: 10px;
+    margin-bottom: 20px;
+}
+
+.auth-tab-btn {
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--light-brown);
+    cursor: pointer;
+    padding: 6px 16px;
+    border-radius: 20px;
+    transition: var(--transition);
+}
+
+.auth-tab-btn:hover {
+    color: var(--dark-brown);
+    background: rgba(245, 225, 210, 0.2);
+}
+
+.auth-tab-btn.active {
+    color: var(--dark-brown);
+    background: var(--primary-peach);
+}
+
+.auth-form {
+    display: none;
+}
+
+.auth-form.active {
+    display: block;
+    animation: fadeInTab 0.4s ease forwards;
+}
+
+/* Dynamic Live Status Indicator Dot */
+.live-indicator-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    vertical-align: middle;
+    margin-right: 6px;
+}
+
+.live-indicator-dot.live {
+    background-color: #38a169;
+    box-shadow: 0 0 8px #38a169;
+}
+
+.live-indicator-dot.mock {
+    background-color: var(--accent-gold);
+    box-shadow: 0 0 8px var(--accent-gold);
+}
+

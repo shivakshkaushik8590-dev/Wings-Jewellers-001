@@ -15,6 +15,19 @@ connectDB();
 
 const app = express();
 
+// Trust reverse proxy for rate-limiting (Vercel, Render, Heroku)
+app.set('trust proxy', 1);
+
+// Production HTTPS Enforcer
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    if (req.header('x-forwarded-proto') !== 'https') {
+      return res.redirect(`https://${req.header('host')}${req.url}`);
+    }
+    next();
+  });
+}
+
 // Security Headers Middleware
 app.use(helmet());
 
@@ -56,6 +69,7 @@ app.use('/api/orders', require('./routes/orderRoutes'));
 app.use('/api/payment', require('./routes/paymentRoutes'));
 app.use('/api/reviews', require('./routes/reviewRoutes'));
 app.use('/api/admin', require('./routes/adminRoutes'));
+app.use('/api/enhancements', require('./routes/enhancementRoutes'));
 
 // Default base route check
 app.get('/', (req, res) => {

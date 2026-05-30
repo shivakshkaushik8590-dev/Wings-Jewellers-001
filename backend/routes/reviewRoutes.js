@@ -2,6 +2,7 @@ const express = require('express');
 const Review = require('../models/Review');
 const Product = require('../models/Product');
 const { protect, admin } = require('../middleware/authMiddleware');
+const { validateReview } = require('../middleware/validationMiddleware');
 
 const router = express.Router();
 
@@ -23,7 +24,7 @@ router.get('/product/:productId', async (req, res, next) => {
 // @desc    Create a product review
 // @route   POST /api/reviews
 // @access  Private
-router.post('/', protect, async (req, res, next) => {
+router.post('/', protect, validateReview, async (req, res, next) => {
   const { productId, rating, comment } = req.body;
 
   try {

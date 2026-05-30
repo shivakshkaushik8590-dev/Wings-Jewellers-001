@@ -29,6 +29,8 @@
         <div class="nav-icons">
             <a href="#" class="nav-icon-link"><i class="fa-solid fa-magnifying-glass"></i></a>
             <a href="#" class="nav-icon-link" style="margin-left: 20px;"><i class="fa-solid fa-cart-shopping"></i></a>
+            <a href="#" class="nav-icon-link" style="margin-left: 20px;" id="auth-nav-icon" title="Account Portal"><i class="fa-solid fa-user"></i></a>
+            <span id="user-display-name" style="margin-left: 10px;"></span>
         </div>
     </nav>
 
@@ -645,6 +647,10 @@
                 <h3>Bespoke Checkout</h3>
                 <button id="close-checkout-modal" class="modal-close-btn"><i class="fa-solid fa-xmark"></i></button>
             </div>
+            <div class="connection-status-badge mock" id="checkout-connection-badge" style="width: 100%; justify-content: center; margin-bottom: 1.5rem;">
+                <span class="live-indicator-dot mock" id="checkout-connection-dot"></span>
+                <span id="checkout-connection-text">Database: Offline (Mock Mode)</span>
+            </div>
             
             <div style="margin-bottom: 2rem;">
                 <h4 style="margin-bottom: 0.8rem; text-transform: uppercase; font-size: 0.8rem; letter-spacing: 1px; color: var(--light-brown);">Order Summary</h4>
@@ -720,7 +726,39 @@
             <button class="admin-close-btn" id="admin-deck-close"><i class="fa-solid fa-xmark"></i></button>
         </div>
         <p style="font-size: 0.85rem; color: var(--light-brown); margin-bottom: 1rem;">Wings Jewellers Operations Simulator Panel</p>
+        <div class="connection-status-badge mock" id="admin-connection-badge" style="width: 100%; justify-content: center;">
+            <span class="live-indicator-dot mock" id="admin-connection-dot"></span>
+            <span id="admin-connection-text">Database: Offline (Mock Mode)</span>
+        </div>
         
+        <div class="admin-sec-title">Live Diagnostics & Security Shield</div>
+        <div style="background: white; border: 1px solid rgba(166,139,124,0.15); border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                <div style="background: #faf5f0; padding: 10px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 1.2rem; color: var(--accent-gold); font-weight: bold;" id="admin-stat-sales">$0</div>
+                    <div style="font-size: 0.7rem; color: var(--light-brown);">Revenue</div>
+                </div>
+                <div style="background: #faf5f0; padding: 10px; border-radius: 8px; text-align: center;">
+                    <div style="font-size: 1.2rem; color: var(--accent-gold); font-weight: bold;" id="admin-stat-orders">0</div>
+                    <div style="font-size: 0.7rem; color: var(--light-brown);">Orders</div>
+                </div>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem; margin-bottom: 8px;">
+                <span>DDoS Shield (Helmet/Rate-Limit):</span>
+                <span style="color: #38a169; font-weight: bold;"><i class="fa-solid fa-shield-check"></i> ACTIVE</span>
+            </div>
+            <div style="display: flex; align-items: center; justify-content: space-between; font-size: 0.8rem;">
+                <span>JWT Authentication:</span>
+                <span style="color: #38a169; font-weight: bold;"><i class="fa-solid fa-lock"></i> SECURE</span>
+            </div>
+        </div>
+
+        <div class="admin-sec-title">Recent Orders Dispatch</div>
+        <div id="admin-orders-list" style="background: white; border: 1px solid rgba(166,139,124,0.15); border-radius: 12px; padding: 1rem; margin-bottom: 1rem; font-size: 0.8rem;">
+            <!-- Order tracking dispatch items go here -->
+            <p style="color: var(--light-brown); text-align: center;">No recent orders</p>
+        </div>
+
         <div class="admin-sec-title">Reviews Moderation</div>
         <div style="background: white; border: 1px solid rgba(166,139,124,0.15); border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
             <p style="font-size: 0.8rem; margin-bottom: 0.8rem;" id="admin-reviews-pending-label">Pending Reviews: 0</p>
@@ -738,7 +776,7 @@
             <button class="cta-button" id="admin-replenish-stock" style="margin: 0; padding: 0.6rem 1.2rem; font-size: 0.75rem; border: none; width: 100%; cursor: pointer; background: var(--light-brown);">Replenish Catalog Stock</button>
         </div>
         
-        <div class="admin-sec-title">Issue Promo Coupon</div>
+        <div class="admin-sec-title">Active Coupons Manager</div>
         <div style="background: white; border: 1px solid rgba(166,139,124,0.15); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem;">
             <input type="text" id="admin-new-coupon-code" class="luxury-input" placeholder="COUPON_CODE" style="margin-bottom: 0.8rem; padding: 0.6rem 1rem; text-transform: uppercase;">
             <div style="display: flex; gap: 8px; margin-bottom: 0.8rem;">
@@ -748,7 +786,12 @@
                     <option value="flat">Flat $</option>
                 </select>
             </div>
-            <button class="cta-button" id="admin-create-coupon-btn" style="margin: 0; padding: 0.6rem 1.2rem; font-size: 0.75rem; border: none; width: 100%; cursor: pointer;">Generate Code</button>
+            <button class="cta-button" id="admin-create-coupon-btn" style="margin: 0 0 1rem 0; padding: 0.6rem 1.2rem; font-size: 0.75rem; border: none; width: 100%; cursor: pointer;">Generate Code</button>
+            
+            <div id="admin-active-coupons" style="font-size: 0.75rem; max-height: 100px; overflow-y: auto; border-top: 1px solid #eee; padding-top: 10px;">
+                <!-- Active coupons populated here -->
+                <p style="color: var(--light-brown); text-align: center;">No active coupons</p>
+            </div>
         </div>
     </div>
 
@@ -864,6 +907,85 @@
     <div id="stock-alerts-banner" class="stock-alert-bar" style="display: none;">
         <i class="fa-solid fa-triangle-exclamation"></i>
         <span><strong>Inventory Warning:</strong> A best-selling item is running extremely low in stock. Replenish immediately.</span>
+    </div>    <!-- Authentication Modal Overlay -->
+    <div id="auth-modal-overlay" class="modal-overlay">
+        <div class="checkout-modal">
+            <div class="modal-header">
+                <h3>Wings Portal</h3>
+                <button id="close-auth-modal" class="modal-close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <!-- Connection Status Badge -->
+            <div class="connection-status-badge mock" id="auth-connection-badge" style="width: 100%; justify-content: center;">
+                <span class="live-indicator-dot mock" id="auth-connection-dot"></span>
+                <span id="auth-connection-text">Database: Offline (Mock Mode)</span>
+            </div>
+
+            <!-- Login / Register Tabs -->
+            <div class="auth-tabs" id="auth-modal-tabs">
+                <button class="auth-tab-btn active" id="tab-btn-login">Login</button>
+                <button class="auth-tab-btn" id="tab-btn-register">Register</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="auth-login-form" class="auth-form active" onsubmit="event.preventDefault();">
+                <div class="luxury-input-group">
+                    <label>Email Address</label>
+                    <input type="email" id="login-email" class="luxury-input" placeholder="e.g. elena@wingsjewellers.com" required autocomplete="username">
+                </div>
+                <div class="luxury-input-group">
+                    <label>Password</label>
+                    <input type="password" id="login-password" class="luxury-input" placeholder="Enter password (min. 6 chars)" required autocomplete="current-password">
+                </div>
+                <span id="login-error-msg" style="font-size: 0.82rem; color: #e53e3e; display: block; margin-bottom: 1.5rem;"></span>
+                <button type="submit" class="cta-button" style="margin: 0; width: 100%; border: none; cursor: pointer;">Sign In Securely</button>
+                <p style="font-size: 0.8rem; text-align: center; color: var(--light-brown); margin-top: 15px; line-height: 1.5;">
+                    Test User: <strong style="color: var(--dark-brown);">elena@wingsjewellers.com</strong> / <strong style="color: var(--dark-brown);">password123</strong><br>
+                    Test Admin: <strong style="color: var(--dark-brown);">admin@wingsjewellers.com</strong> / <strong style="color: var(--dark-brown);">adminpassword123</strong>
+                </p>
+            </form>
+
+            <!-- Registration Form -->
+            <form id="auth-register-form" class="auth-form" onsubmit="event.preventDefault();">
+                <div class="luxury-input-group">
+                    <label>Full Name</label>
+                    <input type="text" id="register-name" class="luxury-input" placeholder="e.g. Isabella Thorne" required autocomplete="name">
+                </div>
+                <div class="luxury-input-group">
+                    <label>Email Address</label>
+                    <input type="email" id="register-email" class="luxury-input" placeholder="e.g. isabella@example.com" required autocomplete="email">
+                </div>
+                <div class="luxury-input-group">
+                    <label>Password</label>
+                    <input type="password" id="register-password" class="luxury-input" placeholder="Create robust password (min. 6 chars)" required autocomplete="new-password">
+                </div>
+                <span id="register-error-msg" style="font-size: 0.82rem; color: #e53e3e; display: block; margin-bottom: 1.5rem;"></span>
+                <button type="submit" class="cta-button" style="margin: 0; width: 100%; border: none; cursor: pointer;">Register Bespoke Account</button>
+            </form>
+            
+            <!-- Logged In Profile State -->
+            <div id="auth-profile-details" style="display: none; text-align: center;">
+                <i class="fa-solid fa-circle-user" style="font-size: 4rem; color: var(--accent-gold); margin-bottom: 15px;"></i>
+                <h4 id="profile-user-name" style="font-size: 1.3rem; color: var(--dark-brown); font-weight: 600;">Elena Park</h4>
+                <p id="profile-user-email" style="font-size: 0.9rem; color: var(--light-brown); margin-bottom: 25px;">elena@wingsjewellers.com</p>
+                
+                <!-- Loyalty Rewards Panel -->
+                <div id="profile-loyalty-panel" style="background: rgba(255, 235, 205, 0.2); border: 1px solid rgba(212,175,55,0.3); border-radius: 12px; padding: 15px; margin-bottom: 25px; text-align: left;">
+                    <h5 style="margin: 0 0 10px 0; color: var(--dark-brown); font-size: 1rem;"><i class="fa-solid fa-crown" style="color: var(--accent-gold);"></i> Loyalty Rewards</h5>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span style="font-size: 0.9rem;">Available Points:</span>
+                        <strong id="loyalty-points-display" style="font-size: 1.2rem; color: var(--accent-gold);">0</strong>
+                    </div>
+                    <p style="font-size: 0.75rem; color: var(--light-brown); margin-top: 5px;">Earn 1 point per $1 spent. Redeem 100 points for a $10 coupon.</p>
+                    <button id="redeem-points-btn" class="cta-button" style="margin-top: 10px; width: 100%; padding: 0.5rem; font-size: 0.8rem; border: none; cursor: pointer;">Redeem 100 Points</button>
+                    <p id="redeem-msg" style="font-size: 0.75rem; color: #38a169; margin-top: 5px; display: none;"></p>
+                </div>
+
+                <div style="display: flex; gap: 15px;">
+                    <button id="auth-logout-btn" class="cta-button" style="margin: 0; width: 100%; border: none; cursor: pointer; background: var(--light-brown);">Logout</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="main.js"></script>

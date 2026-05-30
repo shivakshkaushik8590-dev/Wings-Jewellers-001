@@ -812,10 +812,17 @@ function initCustomizer() {
 }
 
 // ==========================================
-// E-COMMERCE HUB EXTENSION SYSTEM
+// E-COMMERCE HUB EXTENSION SYSTEM (API INTERGRATION)
 // ==========================================
 
-// State Databases
+const BACKEND_URL = 'http://localhost:5000';
+let isLiveBackend = false;
+let currentUser = null;
+let currentToken = null;
+let liveProducts = [];
+let pendingLiveReviews = [];
+
+// State Databases (Mock fallback & state cache)
 const ECommerceDB = {
     reviews: [
         { id: 1, user: "Elena Park", rating: 5, comment: "Absolutely breathtaking! The Rose Gold Wings of Elegance pendant is extremely light-weight and sparkles with true Korean sophistication.", isApproved: true },
@@ -826,6 +833,7 @@ const ECommerceDB = {
         { code: "WELCOME10", type: "percent", value: 10.0 }
     ],
     orders: {},
+    loyalty: { points: 1500, tier: "Gold" }, // Mock loyalty
     activeCoupon: null,
     stockThreshold: 5,
     catalogStock: {
@@ -835,12 +843,319 @@ const ECommerceDB = {
     }
 };
 
-// Review star selection
+// Database Status Indicator Sync
+function updateConnectionStatusUI(live) {
+    const badges = [
+        { id: 'auth-connection-badge', dot: 'auth-connection-dot', text: 'auth-connection-text' },
+        { id: 'admin-connection-badge', dot: 'admin-connection-dot', text: 'admin-connection-text' },
+        { id: 'checkout-connection-badge', dot: 'checkout-connection-dot', text: 'checkout-connection-text' }
+    ];
+    
+    badges.forEach(b => {
+        const badgeEl = document.getElementById(b.id);
+        const dotEl = document.getElementById(b.dot);
+        const textEl = document.getElementById(b.text);
+        
+        if (badgeEl && dotEl && textEl) {
+            if (live) {
+                badgeEl.className = 'connection-status-badge live';
+                dotEl.className = 'live-indicator-dot live';
+                textEl.textContent = 'Database: Live (Connected)';
+            } else {
+                badgeEl.className = 'connection-status-badge mock';
+                dotEl.className = 'live-indicator-dot mock';
+                textEl.textContent = 'Database: Offline (Mock Mode)';
+            }
+        }
+    });
+}
+
+// Check live backend server status
+async function checkBackendConnection() {
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1500);
+        
+        const res = await fetch(`${BACKEND_URL}/`, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        
+        if (res.ok) {
+            isLiveBackend = true;
+            console.log('Wings Jewellers Live Database Mode Connected.');
+            updateConnectionStatusUI(true);
+            
+            // Auto-load token profile
+            const savedToken = localStorage.getItem('wings_token');
+            if (savedToken) {
+                await loadUserProfile(savedToken);
+            }
+            
+            await syncLiveReviews();
+            await syncAdminDashboard();
+        } else {
+            throw new Error('Unresponsive');
+        }
+    } catch (e) {
+        isLiveBackend = false;
+        console.log('Wings Jewellers Offline Mock Sandbox Active.');
+        updateConnectionStatusUI(false);
+    }
+}
+
+// Fetch user profile from live database
+async function loadUserProfile(token) {
+    try {
+        const res = await fetch(`${BACKEND_URL}/api/auth/profile`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) {
+            currentUser = data.data;
+            currentToken = token;
+            updateUserNavUI(true);
+            await syncLoyaltyPoints(); // Fetch loyalty points
+        } else {
+            localStorage.removeItem('wings_token');
+            currentUser = null;
+            currentToken = null;
+            updateUserNavUI(false);
+        }
+    } catch (e) {
+        console.error('Error fetching live user profile:', e);
+    }
+}
+
+// Fetch Loyalty Points
+async function syncLoyaltyPoints() {
+    let points = 0;
+    if (isLiveBackend && currentUser) {
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/enhancements/loyalty/points`, {
+                headers: { 'Authorization': `Bearer ${currentToken}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                points = data.data.points;
+            }
+        } catch (e) { console.error('Error fetching loyalty points:', e); }
+    } else {
+        points = ECommerceDB.loyalty.points;
+    }
+    const display = document.getElementById('loyalty-points-display');
+    if (display) display.textContent = points;
+}
+
+// Redeem Loyalty Points
+document.getElementById('redeem-points-btn')?.addEventListener('click', async () => {
+    const msgEl = document.getElementById('redeem-msg');
+    if (!msgEl) return;
+    
+    msgEl.style.display = 'block';
+    if (isLiveBackend) {
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/enhancements/loyalty/redeem`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                body: JSON.stringify({ pointsToRedeem: 100 })
+            });
+            const data = await res.json();
+            if (data.success) {
+                msgEl.textContent = `Success! Promo Code generated: ${data.data.discountCode}`;
+                msgEl.style.color = '#38a169';
+                syncLoyaltyPoints();
+            } else {
+                msgEl.textContent = `Error: ${data.message}`;
+                msgEl.style.color = '#e53e3e';
+            }
+        } catch (e) {
+            msgEl.textContent = 'Server error during redemption.';
+            msgEl.style.color = '#e53e3e';
+        }
+    } else {
+        if (ECommerceDB.loyalty.points >= 100) {
+            ECommerceDB.loyalty.points -= 100;
+            syncLoyaltyPoints();
+            const code = `LOYALTY-100-${Math.random().toString(36).substring(2,8).toUpperCase()}`;
+            ECommerceDB.coupons.push({ code, type: 'flat', value: 10 });
+            msgEl.textContent = `Success! Mock Promo Code generated: ${code}`;
+            msgEl.style.color = '#38a169';
+        } else {
+            msgEl.textContent = 'Insufficient points for redemption.';
+            msgEl.style.color = '#e53e3e';
+        }
+    }
+});
+
+// Update navbar user portal display
+function updateUserNavUI(loggedIn) {
+    const userDisplay = document.getElementById('user-display-name');
+    const authNavIcon = document.getElementById('auth-nav-icon');
+    
+    const loginForm = document.getElementById('auth-login-form');
+    const registerForm = document.getElementById('auth-register-form');
+    const profileDetails = document.getElementById('auth-profile-details');
+    const tabs = document.getElementById('auth-modal-tabs');
+    
+    if (loggedIn && currentUser) {
+        if (userDisplay) {
+            userDisplay.textContent = `Hi, ${currentUser.name.split(' ')[0]}`;
+        }
+        if (authNavIcon) {
+            authNavIcon.innerHTML = '<i class="fa-solid fa-circle-user" style="color: var(--accent-gold); font-size: 1.25rem;"></i>';
+        }
+        
+        if (loginForm) loginForm.style.display = 'none';
+        if (registerForm) registerForm.style.display = 'none';
+        if (tabs) tabs.style.display = 'none';
+        
+        if (profileDetails) {
+            profileDetails.style.display = 'block';
+            document.getElementById('profile-user-name').textContent = currentUser.name;
+            document.getElementById('profile-user-email').textContent = `${currentUser.email} (${currentUser.role.toUpperCase()})`;
+        }
+    } else {
+        if (userDisplay) userDisplay.textContent = '';
+        if (authNavIcon) authNavIcon.innerHTML = '<i class="fa-solid fa-user"></i>';
+        
+        if (tabs) tabs.style.display = 'flex';
+        
+        const btnLogin = document.getElementById('tab-btn-login');
+        const btnRegister = document.getElementById('tab-btn-register');
+        if (btnLogin) btnLogin.classList.add('active');
+        if (btnRegister) btnRegister.classList.remove('active');
+        
+        if (loginForm) {
+            loginForm.classList.add('active');
+            loginForm.style.display = 'block';
+        }
+        if (registerForm) {
+            registerForm.classList.remove('active');
+            registerForm.style.display = 'none';
+        }
+        if (profileDetails) profileDetails.style.display = 'none';
+    }
+}
+
+// Sync reviews from live MongoDB
+async function syncLiveReviews() {
+    if (!isLiveBackend) return;
+    try {
+        const resProd = await fetch(`${BACKEND_URL}/api/products`);
+        const dataProd = await resProd.json();
+        if (dataProd.success && dataProd.data.length > 0) {
+            liveProducts = dataProd.data;
+            
+            let compiledReviews = [];
+            for (const prod of liveProducts) {
+                const resRev = await fetch(`${BACKEND_URL}/api/reviews/product/${prod._id}`);
+                const dataRev = await resRev.json();
+                if (dataRev.success && dataRev.data.length > 0) {
+                    dataRev.data.forEach(r => {
+                        compiledReviews.push({
+                            id: r._id,
+                            user: r.userName || "Verified Client",
+                            rating: r.rating,
+                            comment: r.comment,
+                            isApproved: r.isApproved
+                        });
+                    });
+                }
+            }
+            if (compiledReviews.length > 0) {
+                ECommerceDB.reviews = compiledReviews;
+            }
+        }
+    } catch (e) {
+        console.error('Error syncing reviews:', e);
+    }
+}
+
+// Sync admin dashboard moderations and stats
+async function syncAdminDashboard() {
+    const salesEl = document.getElementById('admin-stat-sales');
+    const ordersEl = document.getElementById('admin-stat-orders');
+    const ordersList = document.getElementById('admin-orders-list');
+    
+    if (isLiveBackend && currentUser && currentUser.role === 'admin') {
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/admin/dashboard`, {
+                headers: { 'Authorization': `Bearer ${currentToken}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                pendingLiveReviews = data.data.pendingReviews;
+                const lbl = document.getElementById('admin-reviews-pending-label');
+                if (lbl) {
+                    lbl.textContent = `Pending Reviews Awaiting Approval: ${pendingLiveReviews.length}`;
+                }
+                
+                // Update stats
+                if (salesEl) salesEl.textContent = `$${data.data.stats.totalSales}`;
+                if (ordersEl) ordersEl.textContent = data.data.stats.ordersCount;
+                
+                // Update recent orders list
+                if (ordersList) {
+                    if (data.data.recentOrders.length > 0) {
+                        ordersList.innerHTML = data.data.recentOrders.map(o => `
+                            <div style="border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 5px;">
+                                <strong>ID:</strong> ${o._id}<br>
+                                <strong>Status:</strong> <span style="color:var(--accent-gold);">${o.orderStatus}</span> - $${o.totalPrice}
+                            </div>
+                        `).join('');
+                    } else {
+                        ordersList.innerHTML = '<p style="color: var(--light-brown); text-align: center;">No recent live orders</p>';
+                    }
+                }
+            }
+        } catch (e) {
+            console.error('Error syncing admin stats:', e);
+        }
+    } else {
+        updateAdminReviewPendingCount();
+        
+        // Mock stats
+        let totalSales = 0;
+        const mockOrders = Object.values(ECommerceDB.orders);
+        mockOrders.forEach(o => totalSales += o.amount);
+        
+        if (salesEl) salesEl.textContent = `$${totalSales.toFixed(2)}`;
+        if (ordersEl) ordersEl.textContent = mockOrders.length;
+        
+        if (ordersList) {
+            if (mockOrders.length > 0) {
+                ordersList.innerHTML = mockOrders.map(o => `
+                    <div style="border-bottom: 1px solid #eee; padding-bottom: 5px; margin-bottom: 5px;">
+                        <strong>ID:</strong> ${o.orderId}<br>
+                        <strong>Status:</strong> <span style="color:var(--accent-gold);">${o.status}</span> - $${o.amount}
+                    </div>
+                `).join('');
+            } else {
+                ordersList.innerHTML = '<p style="color: var(--light-brown); text-align: center;">No recent mock orders</p>';
+            }
+        }
+    }
+    
+    // Sync coupons display
+    const couponsList = document.getElementById('admin-active-coupons');
+    if (couponsList) {
+        if (ECommerceDB.coupons.length > 0) {
+            couponsList.innerHTML = ECommerceDB.coupons.map(c => `
+                <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed #ccc; padding: 4px 0;">
+                    <strong>${c.code}</strong>
+                    <span>${c.value}${c.type === 'percent' ? '%' : '$'} OFF</span>
+                </div>
+            `).join('');
+        } else {
+            couponsList.innerHTML = '<p style="color: var(--light-brown); text-align: center;">No active coupons</p>';
+        }
+    }
+}
+
+// Review stars input selection
 const starsSelector = document.getElementById('stars-selector');
 let selectedReviewRating = 5;
 
 if (starsSelector) {
-    // Init active stars
     const stars = starsSelector.querySelectorAll('i');
     const updateStarsUI = (val) => {
         stars.forEach((star, idx) => {
@@ -857,7 +1172,7 @@ if (starsSelector) {
     });
 }
 
-// Load & display reviews
+// Render verified reviews list
 const displayReviews = () => {
     const listContainer = document.getElementById('reviews-display-list');
     if (!listContainer) return;
@@ -883,38 +1198,91 @@ const displayReviews = () => {
     }).join('');
 };
 
-// Submit review form
+// Create a review
 const reviewForm = document.getElementById('review-form');
 if (reviewForm) {
-    reviewForm.addEventListener('submit', () => {
+    reviewForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
         const nameInput = document.getElementById('review-user-input');
         const commentInput = document.getElementById('review-comment-input');
         
         if (nameInput && commentInput) {
-            const newRev = {
-                id: ECommerceDB.reviews.length + 1,
-                user: nameInput.value,
-                rating: selectedReviewRating,
-                comment: commentInput.value,
-                isApproved: false // Admin must approve
-            };
-            ECommerceDB.reviews.push(newRev);
+            const comment = commentInput.value;
             
-            nameInput.value = '';
-            commentInput.value = '';
-            
-            alert('Thank you! Your custom jewelry review has been submitted for moderation. You can approve it instantly via the Admin Panel on the bottom left.');
-            updateAdminReviewPendingCount();
+            if (isLiveBackend) {
+                if (!currentUser) {
+                    alert('Authentication Required: Please log in using the Account Portal icon at the top right before submitting reviews.');
+                    document.getElementById('auth-modal-overlay').classList.add('active');
+                    return;
+                }
+                
+                try {
+                    let productId = liveProducts.length > 0 ? liveProducts[0]._id : null;
+                    if (!productId) {
+                        const resProd = await fetch(`${BACKEND_URL}/api/products`);
+                        const dataProd = await resProd.json();
+                        if (dataProd.success && dataProd.data.length > 0) {
+                            liveProducts = dataProd.data;
+                            productId = liveProducts[0]._id;
+                        }
+                    }
+                    
+                    if (!productId) {
+                        alert('Error: Could not locate catalog product IDs on server.');
+                        return;
+                    }
+                    
+                    const res = await fetch(`${BACKEND_URL}/api/reviews`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${currentToken}`
+                        },
+                        body: JSON.stringify({
+                            productId,
+                            rating: selectedReviewRating,
+                            comment
+                        })
+                    });
+                    
+                    const data = await res.json();
+                    if (data.success) {
+                        alert('Bespoke Review Submitted! Requires Administrator approval to publish.');
+                        nameInput.value = '';
+                        commentInput.value = '';
+                        await syncAdminDashboard();
+                    } else {
+                        alert(data.message || 'You have already reviewed this product.');
+                    }
+                } catch (err) {
+                    alert('Server connection error. Failed to post review.');
+                }
+            } else {
+                // Mock review composer
+                const newRev = {
+                    id: ECommerceDB.reviews.length + 1,
+                    user: nameInput.value,
+                    rating: selectedReviewRating,
+                    comment: commentInput.value,
+                    isApproved: false
+                };
+                ECommerceDB.reviews.push(newRev);
+                
+                nameInput.value = '';
+                commentInput.value = '';
+                
+                alert('Thank you! Your custom jewelry review has been submitted for moderation. You can approve it instantly via the Admin Panel on the bottom left.');
+                updateAdminReviewPendingCount();
+            }
         }
     });
 }
 
-// Checkout modal actions
+// Checkout Modal Actions
 const chkModal = document.getElementById('checkout-modal-overlay');
 const openCheckout = () => {
     if (!chkModal) return;
     
-    // Calculate prices from customizerState
     calculatePrice();
     const baseCostText = document.getElementById('summary-base-price').textContent;
     const addCostText = document.getElementById('summary-additions-price').textContent;
@@ -929,7 +1297,6 @@ const openCheckout = () => {
     document.getElementById('chk-coupon-status').textContent = '';
     
     document.getElementById('chk-total-price').textContent = totalCostText;
-
     chkModal.classList.add('active');
 };
 
@@ -939,7 +1306,7 @@ const closeCheckout = () => {
 
 document.getElementById('close-checkout-modal')?.addEventListener('click', closeCheckout);
 
-// Apply Coupon
+// Apply Promo Coupon
 const applyCouponBtn = document.getElementById('chk-apply-coupon');
 if (applyCouponBtn) {
     applyCouponBtn.addEventListener('click', () => {
@@ -980,7 +1347,7 @@ if (applyCouponBtn) {
     });
 }
 
-// Payment Gateway Toggles
+// Gateway Selector toggles
 const payOptRazorpay = document.getElementById('pay-opt-razorpay');
 const payOptCashfree = document.getElementById('pay-opt-cashfree');
 let selectedGateway = 'razorpay';
@@ -999,58 +1366,286 @@ if (payOptRazorpay && payOptCashfree) {
     });
 }
 
-// Place Order Securely (Dynamically inject Razorpay Checkout when selected)
+// Shipping Checkout Form submission
 const checkoutShippingForm = document.getElementById('checkout-shipping-form');
 if (checkoutShippingForm) {
-    checkoutShippingForm.addEventListener('submit', () => {
+    checkoutShippingForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
         const address = document.getElementById('chk-address-input').value;
         const phone = document.getElementById('chk-phone-input').value;
         const amountText = document.getElementById('chk-total-price').textContent;
         const amount = parseFloat(amountText.replace('$', ''));
         
-        const orderId = `WINGS-${Math.floor(100000 + Math.random() * 900000)}`;
-
         closeCheckout();
-        
-        // Build mock order object
-        const order = {
-            orderId,
-            address,
-            phone,
-            amount,
-            gateway: selectedGateway,
-            customizerState: JSON.parse(JSON.stringify(customizerState)),
-            status: 'Pending',
-            date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-        };
-        
-        ECommerceDB.orders[orderId] = order;
 
-        if (selectedGateway === 'razorpay') {
-            // Load Razorpay Checkouts script dynamically
-            if (!window.Razorpay) {
-                const script = document.createElement('script');
-                script.src = 'https://checkout.razorpay.com/v1/checkout.js';
-                script.onload = () => initiateRazorpayCheckout(order);
-                document.body.appendChild(script);
-            } else {
-                initiateRazorpayCheckout(order);
+        if (isLiveBackend) {
+            if (!currentUser) {
+                alert('Authentication Required: Please log in using the Account Portal icon at the top right before completing secure payments.');
+                document.getElementById('auth-modal-overlay').classList.add('active');
+                return;
+            }
+            
+            try {
+                // 1. Create live Mongoose Order
+                const orderData = {
+                    shippingAddress: {
+                        address,
+                        phone,
+                        city: 'Seoul',
+                        postalCode: '04321',
+                        country: 'South Korea'
+                    },
+                    orderItems: [{
+                        name: `Bespoke Custom ${customizerState.baseType.toUpperCase()}`,
+                        quantity: 1,
+                        price: amount,
+                        customization: {
+                            baseType: customizerState.baseType,
+                            metalType: customizerState.metalType,
+                            baseShape: customizerState.baseShape,
+                            gemstoneType: customizerState.gemstoneType,
+                            gemstoneCut: customizerState.gemstoneCut,
+                            gemstoneSize: customizerState.gemstoneSize,
+                            engravingText: customizerState.engravingText,
+                            engravingFont: customizerState.engravingFont,
+                            charms: customizerState.charms.map(c => ({
+                                type: c.type,
+                                position: c.position,
+                                swingAngle: c.swingAngle
+                            }))
+                        }
+                    }]
+                };
+                
+                if (ECommerceDB.activeCoupon) {
+                    orderData.couponCode = ECommerceDB.activeCoupon.code;
+                }
+                
+                const resOrder = await fetch(`${BACKEND_URL}/api/orders`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentToken}`
+                    },
+                    body: JSON.stringify(orderData)
+                });
+                
+                const orderResult = await resOrder.json();
+                if (!orderResult.success) {
+                    alert(orderResult.message || 'Failed to create order on server.');
+                    return;
+                }
+                
+                const liveOrder = orderResult.data;
+                const dbOrderId = liveOrder._id;
+                
+                // 2. Load and verify cryptographic signature from selected gateway
+                if (selectedGateway === 'razorpay') {
+                    // Create Razorpay Order
+                    const resPay = await fetch(`${BACKEND_URL}/api/payment/razorpay/create`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${currentToken}`
+                        },
+                        body: JSON.stringify({
+                            amount: liveOrder.totalPrice,
+                            orderId: dbOrderId
+                        })
+                    });
+                    
+                    const payResult = await resPay.json();
+                    if (!payResult.success) {
+                        alert('Razorpay session initialization failed.');
+                        return;
+                    }
+                    
+                    if (!window.Razorpay) {
+                        const script = document.createElement('script');
+                        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+                        script.onload = () => initiateLiveRazorpayCheckout(liveOrder, payResult.data);
+                        document.body.appendChild(script);
+                    } else {
+                        initiateLiveRazorpayCheckout(liveOrder, payResult.data);
+                    }
+                } else {
+                    // Create Cashfree session
+                    const resCF = await fetch(`${BACKEND_URL}/api/payment/cashfree/create`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${currentToken}`
+                        },
+                        body: JSON.stringify({
+                            amount: liveOrder.totalPrice,
+                            orderId: dbOrderId
+                        })
+                    });
+                    
+                    const cfResult = await resCF.json();
+                    if (!cfResult.success) {
+                        alert('Cashfree session initialization failed.');
+                        return;
+                    }
+                    
+                    alert('Redirecting to secure Cashfree Payments window...');
+                    
+                    // Simulate redirects & Backend signature verification
+                    setTimeout(async () => {
+                        const mockCfPaymentId = `pay_cf_mock_${Date.now()}`;
+                        try {
+                            const resVerify = await fetch(`${BACKEND_URL}/api/payment/cashfree/verify`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${currentToken}`
+                                },
+                                body: JSON.stringify({
+                                    orderId: dbOrderId,
+                                    cf_order_id: cfResult.data.cf_order_id || cfResult.data.id,
+                                    mock_payment_id: mockCfPaymentId
+                                })
+                            });
+                            
+                            const verifyData = await resVerify.json();
+                            if (verifyData.success) {
+                                simulateLivePaymentSuccess(verifyData.data);
+                            } else {
+                                alert('Cashfree payment signature verification failed.');
+                            }
+                        } catch (err) {
+                            alert('Server connection error during payment signature verification.');
+                        }
+                    }, 1500);
+                }
+            } catch (err) {
+                alert(`Live Connection Refused: ${err.message}. Proceeding to mock fallback...`);
+                triggerMockFallbackOrder(address, phone, amount);
             }
         } else {
-            // Simulate Cashfree checkout redirects
-            alert(`Redirecting to secure Cashfree Payments window...`);
-            setTimeout(() => {
-                simulatePaymentSuccess(order);
-            }, 1500);
+            triggerMockFallbackOrder(address, phone, amount);
         }
     });
 }
 
-// Initiate Razorpay Checkout Window
+// Initiate live Razorpay checkout window
+function initiateLiveRazorpayCheckout(liveOrder, rzpData) {
+    const options = {
+        key: rzpData.key || "rzp_test_mockKeyId123",
+        amount: rzpData.amount, // in paise
+        currency: rzpData.currency || "INR",
+        name: "Wings Jewellers",
+        description: "Bespoke Jewelry Customizer Piece",
+        image: "logo.jpg",
+        order_id: rzpData.id,
+        handler: async function (response) {
+            try {
+                const resVerify = await fetch(`${BACKEND_URL}/api/payment/razorpay/verify`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentToken}`
+                    },
+                    body: JSON.stringify({
+                        orderId: liveOrder._id,
+                        razorpay_order_id: response.razorpay_order_id,
+                        razorpay_payment_id: response.razorpay_payment_id || `pay_mock_rzp_${Date.now()}`,
+                        razorpay_signature: response.razorpay_signature
+                    })
+                });
+                const verifyData = await resVerify.json();
+                if (verifyData.success) {
+                    simulateLivePaymentSuccess(verifyData.data);
+                } else {
+                    alert('Razorpay payment signature verification failed.');
+                }
+            } catch (err) {
+                alert('Connection error during payment signature verification.');
+            }
+        },
+        prefill: {
+            contact: liveOrder.shippingAddress.phone,
+            email: currentUser.email
+        },
+        theme: {
+            color: "#D4AF37"
+        }
+    };
+
+    const rzp = new Razorpay(options);
+    rzp.open();
+}
+
+// Sync live database verification to client state
+function simulateLivePaymentSuccess(dbOrder) {
+    ECommerceDB.orders[dbOrder._id] = {
+        orderId: dbOrder._id,
+        address: dbOrder.shippingAddress.address,
+        phone: dbOrder.shippingAddress.phone,
+        amount: dbOrder.totalPrice,
+        gateway: dbOrder.paymentMethod,
+        customizerState: dbOrder.orderItems[0].customization,
+        status: dbOrder.orderStatus,
+        date: new Date(dbOrder.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    };
+
+    ECommerceDB.catalogStock["Butterfly Whisper Necklace"] = Math.max(0, ECommerceDB.catalogStock["Butterfly Whisper Necklace"] - 1);
+    checkLowStockAlerts();
+
+    const formattedOrder = {
+        orderId: dbOrder._id,
+        amount: dbOrder.totalPrice
+    };
+    triggerBrandedEmail(formattedOrder);
+
+    alert(`Live Payment Signature Verified Successfully!\nTransaction Recorded: ${dbOrder.paymentResult.cfPaymentId}\nOrder ID: ${dbOrder._id}\n\nYour bespoke Wings order has been securely recorded on the MongoDB server!`);
+
+    const trackingInput = document.getElementById('track-order-id-input');
+    if (trackingInput) {
+        trackingInput.value = dbOrder._id;
+        searchOrderTracking(dbOrder._id);
+    }
+}
+
+// Trigger mock fallback orders
+function triggerMockFallbackOrder(address, phone, amount) {
+    const orderId = `WINGS-${Math.floor(100000 + Math.random() * 900000)}`;
+    const order = {
+        orderId,
+        address,
+        phone,
+        amount,
+        gateway: selectedGateway,
+        customizerState: JSON.parse(JSON.stringify(customizerState)),
+        status: 'Pending',
+        date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    };
+    
+    ECommerceDB.orders[orderId] = order;
+
+    if (selectedGateway === 'razorpay') {
+        if (!window.Razorpay) {
+            const script = document.createElement('script');
+            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            script.onload = () => initiateRazorpayCheckout(order);
+            document.body.appendChild(script);
+        } else {
+            initiateRazorpayCheckout(order);
+        }
+    } else {
+        alert(`Redirecting to secure Cashfree Payments window...`);
+        setTimeout(() => {
+            simulatePaymentSuccess(order);
+        }, 1500);
+    }
+}
+
+// Initiate Razorpay Checkout Window (Mock fallback)
 function initiateRazorpayCheckout(order) {
     const options = {
         key: "rzp_test_mockKeyId123",
-        amount: Math.round(order.amount * 100), // in paise
+        amount: Math.round(order.amount * 100),
         currency: "INR",
         name: "Wings Jewellers",
         description: "Bespoke Jewelry Customizer Piece",
@@ -1074,25 +1669,18 @@ function initiateRazorpayCheckout(order) {
     rzp.open();
 }
 
-// Simulate Payment Success, stock reduction, notifications
+// Simulate Payment Success (Mock fallback)
 function simulatePaymentSuccess(order, transactionId = `pay_mock_cf_${Date.now()}`) {
     order.status = 'Processing';
     order.transactionId = transactionId;
 
-    // Inventory Stock Reduction
-    if (order.customizerState.baseShape !== 'none') {
-        // Deduct from customizable inventory
-        ECommerceDB.catalogStock["Butterfly Whisper Necklace"] = Math.max(0, ECommerceDB.catalogStock["Butterfly Whisper Necklace"] - 1);
-        checkLowStockAlerts();
-    }
+    ECommerceDB.catalogStock["Butterfly Whisper Necklace"] = Math.max(0, ECommerceDB.catalogStock["Butterfly Whisper Necklace"] - 1);
+    checkLowStockAlerts();
 
-    // Slide email notification
     triggerBrandedEmail(order);
 
-    // Success prompt
     alert(`Payment Success!\nTransaction Verified: ${transactionId}\nOrder ID: ${order.orderId}\n\nYour Wings order has been submitted. Check your transactional email mailbox on the right for confirmation.`);
     
-    // Auto search tracking
     const trackingInput = document.getElementById('track-order-id-input');
     if (trackingInput) {
         trackingInput.value = order.orderId;
@@ -1100,7 +1688,7 @@ function simulatePaymentSuccess(order, transactionId = `pay_mock_cf_${Date.now()
     }
 }
 
-// Trigger Branded Email Simulator Drawer
+// Trigger Branded Email Simulator
 function triggerBrandedEmail(order) {
     const emailDrawer = document.getElementById('email-notif-drawer');
     if (!emailDrawer) return;
@@ -1114,7 +1702,6 @@ function triggerBrandedEmail(order) {
     document.getElementById('email-order-status').textContent = 'CRAFTING';
     document.getElementById('email-order-status').style.color = '#D4AF37';
 
-    // Format Custom items
     let name = "Bespoke " + customizerState.baseType.toUpperCase();
     if (customizerState.baseShape !== 'none') {
         name += ` (Metal: ${customizerState.metalType}, Shape: ${customizerState.baseShape}`;
@@ -1136,7 +1723,7 @@ document.getElementById('email-drawer-close')?.addEventListener('click', () => {
     document.getElementById('email-notif-drawer')?.classList.remove('active');
 });
 
-// Invoice PDF generator simulation using print styling
+// Invoice generator using print layouts
 const downloadInvoice = (orderId) => {
     const order = ECommerceDB.orders[orderId];
     if (!order) return;
@@ -1147,7 +1734,6 @@ const downloadInvoice = (orderId) => {
     document.getElementById('inv-date-lbl').textContent = order.date;
     document.getElementById('inv-payment-mode').textContent = `${order.gateway.toUpperCase()} Secured Checkout`;
 
-    // Item title description
     let name = "Bespoke Jewelry Customizer Piece: " + order.customizerState.baseType.toUpperCase();
     if (order.customizerState.baseShape !== 'none') {
         name += ` [Base: ${order.customizerState.baseShape.toUpperCase()}, Metal: ${order.customizerState.metalType.toUpperCase()}`;
@@ -1159,7 +1745,7 @@ const downloadInvoice = (orderId) => {
     
     document.getElementById('inv-product-desc-title').textContent = name;
     
-    const subtotal = order.amount / 1.03; // calculate subtotal before 3% tax
+    const subtotal = order.amount / 1.03;
     const tax = order.amount - subtotal;
 
     document.getElementById('inv-unit-price-val').textContent = `$${subtotal.toFixed(2)}`;
@@ -1178,7 +1764,7 @@ document.getElementById('invoice-download-trigger')?.addEventListener('click', (
     }
 });
 
-// Return & Refund Trigger
+// Return and Reversal trigger
 document.getElementById('order-reversal-trigger')?.addEventListener('click', () => {
     const trackingInput = document.getElementById('track-order-id-input');
     if (!trackingInput) return;
@@ -1193,7 +1779,6 @@ document.getElementById('order-reversal-trigger')?.addEventListener('click', () 
                 order.status = 'Refunded';
                 searchOrderTracking(orderId);
                 
-                // Update email drawer
                 document.getElementById('email-order-status').textContent = 'REFUNDED';
                 document.getElementById('email-order-status').style.color = '#e53e3e';
                 document.getElementById('email-intro-text').innerHTML = `
@@ -1212,13 +1797,42 @@ document.getElementById('order-reversal-trigger')?.addEventListener('click', () 
     }
 });
 
-// Order Tracking Logic
-const searchOrderTracking = (orderId) => {
-    const order = ECommerceDB.orders[orderId];
+// Order Tracking timeline tracker (live and mock synced)
+const searchOrderTracking = async (orderId) => {
     const panel = document.getElementById('tracking-result-panel');
     const desc = document.getElementById('tracking-desc-text');
-    
     if (!panel) return;
+    
+    let order = null;
+    
+    if (isLiveBackend && currentUser) {
+        try {
+            const res = await fetch(`${BACKEND_URL}/api/orders/${orderId}`, {
+                headers: { 'Authorization': `Bearer ${currentToken}` }
+            });
+            const data = await res.json();
+            if (data.success) {
+                const dbOrder = data.data;
+                order = {
+                    orderId: dbOrder._id,
+                    address: dbOrder.shippingAddress.address,
+                    phone: dbOrder.shippingAddress.phone,
+                    amount: dbOrder.totalPrice,
+                    gateway: dbOrder.paymentMethod || 'Razorpay',
+                    customizerState: dbOrder.orderItems[0].customization,
+                    status: dbOrder.orderStatus,
+                    date: new Date(dbOrder.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+                };
+                ECommerceDB.orders[orderId] = order;
+            }
+        } catch (e) {
+            console.error('Error fetching live order stats:', e);
+        }
+    }
+    
+    if (!order) {
+        order = ECommerceDB.orders[orderId];
+    }
 
     if (!order) {
         alert('Order ID not found in transaction logs.');
@@ -1235,7 +1849,6 @@ const searchOrderTracking = (orderId) => {
         delivered: document.getElementById('step-node-delivered')
     };
 
-    // Reset classes
     Object.values(nodes).forEach(n => {
         n.classList.remove('active', 'completed');
     });
@@ -1275,44 +1888,74 @@ document.getElementById('track-order-btn')?.addEventListener('click', () => {
     if (input) searchOrderTracking(input.value.trim());
 });
 
-// Admin Deck Drawer Toggles
+// Admin deck triggers
 const adminDrawer = document.getElementById('admin-control-drawer');
-document.getElementById('admin-deck-open')?.addEventListener('click', () => {
+document.getElementById('admin-deck-open')?.addEventListener('click', async () => {
     adminDrawer?.classList.add('active');
-    updateAdminReviewPendingCount();
+    await syncAdminDashboard();
 });
 
 document.getElementById('admin-deck-close')?.addEventListener('click', () => {
     adminDrawer?.classList.remove('active');
 });
 
-// Admin review moderation count
 function updateAdminReviewPendingCount() {
     const count = ECommerceDB.reviews.filter(r => !r.isApproved).length;
     const lbl = document.getElementById('admin-reviews-pending-label');
     if (lbl) lbl.textContent = `Pending Reviews Awaiting Approval: ${count}`;
 }
 
-// Approve Reviews
-document.getElementById('admin-approve-reviews-btn')?.addEventListener('click', () => {
-    let count = 0;
-    ECommerceDB.reviews.forEach(r => {
-        if (!r.isApproved) {
-            r.isApproved = true;
-            count++;
+// Admin approve reviews (Moderator first)
+document.getElementById('admin-approve-reviews-btn')?.addEventListener('click', async () => {
+    if (isLiveBackend) {
+        if (!currentUser || currentUser.role !== 'admin') {
+            alert('Access Denied: Only users logged in as Admin role can moderate reviews.');
+            document.getElementById('auth-modal-overlay').classList.add('active');
+            return;
         }
-    });
-
-    if (count > 0) {
-        alert(`Success: ${count} pending reviews approved for publication.`);
-        displayReviews();
-        updateAdminReviewPendingCount();
+        
+        if (pendingLiveReviews.length === 0) {
+            alert('No pending reviews found.');
+            return;
+        }
+        
+        let successCount = 0;
+        try {
+            for (const rev of pendingLiveReviews) {
+                const res = await fetch(`${BACKEND_URL}/api/reviews/${rev._id}/approve`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${currentToken}` }
+                });
+                const data = await res.json();
+                if (data.success) successCount++;
+            }
+            alert(`Success: Approved ${successCount} pending reviews successfully!`);
+            await syncLiveReviews();
+            await syncAdminDashboard();
+            displayReviews();
+        } catch (e) {
+            alert('Server error while approving reviews.');
+        }
     } else {
-        alert('No pending reviews found.');
+        let count = 0;
+        ECommerceDB.reviews.forEach(r => {
+            if (!r.isApproved) {
+                r.isApproved = true;
+                count++;
+            }
+        });
+
+        if (count > 0) {
+            alert(`Success: ${count} pending reviews approved for publication.`);
+            displayReviews();
+            updateAdminReviewPendingCount();
+        } else {
+            alert('No pending reviews found.');
+        }
     }
 });
 
-// Admin Inventory Slider & Stock Control
+// Admin inventory control
 const stockAlertBar = document.getElementById('stock-alerts-banner');
 const thresholdSlider = document.getElementById('admin-threshold-slider');
 const thresholdNum = document.getElementById('admin-threshold-num');
@@ -1334,14 +1977,14 @@ if (thresholdSlider && thresholdNum) {
 
 document.getElementById('admin-replenish-stock')?.addEventListener('click', () => {
     Object.keys(ECommerceDB.catalogStock).forEach(key => {
-        ECommerceDB.catalogStock[key] = 12; // Replenish back to 12
+        ECommerceDB.catalogStock[key] = 12;
     });
     checkLowStockAlerts();
     alert('Catalog inventory counts successfully replenished back to normal levels!');
 });
 
-// Admin promo coupon issuer
-document.getElementById('admin-create-coupon-btn')?.addEventListener('click', () => {
+// Admin new coupon generator
+document.getElementById('admin-create-coupon-btn')?.addEventListener('click', async () => {
     const codeInput = document.getElementById('admin-new-coupon-code');
     const valInput = document.getElementById('admin-new-coupon-val');
     const typeSelect = document.getElementById('admin-new-coupon-type');
@@ -1351,18 +1994,38 @@ document.getElementById('admin-create-coupon-btn')?.addEventListener('click', ()
         const value = parseFloat(valInput.value);
         const type = typeSelect.value;
 
-        ECommerceDB.coupons.push({ code, type, value });
-        
-        alert(`Promo coupon generated successfully!\nCode: ${code}\nPromotion: ${value}${type === 'percent' ? '% Off' : ' Flat $'}`);
+        if (isLiveBackend && currentUser && currentUser.role === 'admin') {
+            try {
+                const res = await fetch(`${BACKEND_URL}/api/admin/coupons`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                    body: JSON.stringify({ code, discountType: type, discountValue: value, expiryDate: new Date(Date.now() + 30*24*60*60*1000) })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(`Live Promo coupon generated!\nCode: ${code}`);
+                } else {
+                    alert(data.message || 'Error generating live coupon');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        } else {
+            ECommerceDB.coupons.push({ code, type, value });
+            alert(`Mock Promo coupon generated successfully!\nCode: ${code}\nPromotion: ${value}${type === 'percent' ? '% Off' : ' Flat $'}`);
+        }
         
         codeInput.value = '';
         valInput.value = '';
+        await syncAdminDashboard();
     } else {
         alert('Please specify coupon code and value.');
     }
 });
 
-// Attach load handler
-window.addEventListener('DOMContentLoaded', () => {
+// DOMContentLoaded load attachments
+window.addEventListener('DOMContentLoaded', async () => {
     initCustomizer();
+    initAuthModal();
+    await checkBackendConnection();
 });
