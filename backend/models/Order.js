@@ -101,8 +101,31 @@ const orderSchema = new mongoose.Schema({
   orderStatus: {
     type: String,
     required: true,
-    enum: ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Returned', 'Refunded'],
-    default: 'Pending'
+    enum: [
+      'Placed',       // Order placed, awaiting payment confirmation
+      'Processing',   // Payment confirmed, being prepared
+      'Crafting',     // Jewellery being handcrafted by artisans
+      'Shipped',      // Dispatched from warehouse/workshop
+      'Delivered',    // Successfully delivered to customer
+      'Cancelled',    // Cancelled by customer or admin
+      'Returned',     // Return request initiated / in transit back
+      'Refunded'      // Refund issued (payment reversed)
+    ],
+    default: 'Placed'
+  },
+  cancelReason: {
+    type: String,
+    default: null
+  },
+  returnReason: {
+    type: String,
+    default: null
+  },
+  cancelledAt: {
+    type: Date
+  },
+  returnedAt: {
+    type: Date
   },
   razorpayOrderId: {
     type: String
